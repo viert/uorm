@@ -158,7 +158,7 @@ export default abstract class AbstractModel {
     return Reflect.getMetadata(DEFAULT_VALUES_META_KEY, this);
   }
 
-  private get __required_fields__(): string[] {
+  protected get __required_fields__(): string[] {
     return Reflect.getMetadata(REQUIRED_FIELDS_META_KEY, this);
   }
 
@@ -209,7 +209,7 @@ export default abstract class AbstractModel {
 
   async destroy(skipCallback: boolean = false) {
     if (this.isNew) {
-      return;
+      return this;
     }
 
     if (!skipCallback) {

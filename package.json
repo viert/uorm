@@ -37,8 +37,9 @@
   },
   "dependencies": {
     "@types/bson": "^4.0.1",
-    "bson-ext": "^2.0.3",
-    "mongodb": "^3.4.1",
+    "@types/mongodb": "^3.3.14",
+    "bson": "^4.0.1",
+    "mongodb": "^3.3.14",
     "reflect-metadata": "^0.1.13"
   }
 }
