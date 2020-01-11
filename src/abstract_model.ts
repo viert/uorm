@@ -104,7 +104,7 @@ export function SaveRequired<T extends AbstractModel>(
   _propertyName: string,
   descriptor: PropertyDescriptor
 ) {
-  let original = descriptor.value;
+  const original = descriptor.value;
   descriptor.value = function(...args: any[]) {
     if ((this as T).isNew) {
       throw new ModelSaveRequired();
@@ -114,7 +114,7 @@ export function SaveRequired<T extends AbstractModel>(
 }
 
 export default abstract class AbstractModel {
-  @Field() _id: ObjectID;
+  @Field() _id: ObjectID | null;
   protected get __fields__(): string[] {
     return Reflect.getMetadata(FIELDS_META_KEY, this);
   }
@@ -154,7 +154,7 @@ export default abstract class AbstractModel {
     const isNew = this.isNew;
 
     if (!skipCallback) {
-      this._before_validation();
+      await this._before_validation();
     }
     this._validate();
 
@@ -166,12 +166,32 @@ export default abstract class AbstractModel {
     });
 
     if (!skipCallback) {
-      this._before_save();
+      await this._before_save();
     }
     await this._save_to_db();
     if (!skipCallback) {
-      this._after_save(isNew);
+      await this._after_save(isNew);
     }
+
+    return this;
+  }
+
+  async destroy(skipCallback: boolean = false) {
+    if (this.isNew) {
+      return;
+    }
+
+    if (!skipCallback) {
+      await this._before_delete();
+    }
+    await this._delete_from_db();
+
+    if (!skipCallback) {
+      await this._after_delete();
+    }
+    this._id = null;
+
+    return this;
   }
 
   constructor(data: { [key: string]: any }) {
