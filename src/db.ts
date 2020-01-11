@@ -1,5 +1,13 @@
-import { MongoClient, Db, Cursor } from 'mongodb';
+import {
+  MongoClient,
+  Db,
+  Cursor,
+  DeleteWriteOpResultObject,
+  UpdateWriteOpResult,
+} from 'mongodb';
+
 import AbstractModel from './abstract_model';
+import StorableModel from './storable_model';
 import { InvalidShardId } from './errors';
 
 interface DBConfig {
@@ -73,7 +81,7 @@ class DBShard {
     return this.database;
   }
 
-  async get_obj<T extends AbstractModel>(
+  async getObj<T extends AbstractModel>(
     ModelClass: new (data: Object) => T,
     collection: string,
     query: Object
@@ -83,14 +91,63 @@ class DBShard {
     return new ModelClass(result);
   }
 
-  async get_objs<T extends AbstractModel>(
+  async getObjs<T extends AbstractModel>(
     ModelClass: new (data: Object) => T,
     collection: string,
-    query: Object
+    query: { [key: string]: any }
   ): Promise<Cursor> {
     const coll = this.db.collection(collection);
     const cursor = coll.find(query);
     return createObjectsCursor(cursor, ModelClass);
+  }
+
+  async getObjsProjected(
+    collection: string,
+    query: { [key: string]: any },
+    projection: { [key: string]: boolean }
+  ): Promise<Cursor> {
+    const coll = this.db.collection(collection);
+    const cursor = coll.find(query).project(projection);
+    return cursor;
+  }
+
+  async saveObj<T extends StorableModel>(obj: T): Promise<void> {
+    const coll = this.db.collection(obj.__collection__);
+
+    if (obj.isNew) {
+      let data = obj.toObject(null, true);
+      delete data['_id'];
+
+      const insertedObj = await coll.insertOne(data);
+      obj._id = insertedObj.insertedId;
+    } else {
+      await coll.replaceOne({ _id: obj._id }, obj.toObject(null, true), {
+        upsert: true,
+      });
+    }
+  }
+
+  async deleteObj<T extends StorableModel>(obj: T): Promise<void> {
+    if (obj.isNew) return;
+    const coll = this.db.collection(obj.__collection__);
+    coll.deleteOne({ _id: obj._id });
+  }
+
+  async deleteQuery(
+    collection: string,
+    query: { [key: string]: any }
+  ): Promise<DeleteWriteOpResultObject> {
+    const coll = this.db.collection(collection);
+    return coll.deleteMany(query);
+  }
+
+  async updateQuery(
+    collection: string,
+    query: { [key: string]: any },
+    update: { [key: string]: any }
+  ): Promise<UpdateWriteOpResult> {
+    const coll = this.db.collection(collection);
+    return coll.updateMany(query, update);
   }
 }
 
@@ -118,4 +175,13 @@ class DB {
   }
 }
 
-export { DB };
+let db: DB;
+
+export async function initDB(config: {
+  meta: DBConfig;
+  shards: { [key: string]: DBConfig };
+}) {
+  db = await DB.create(config);
+}
+
+export default db;

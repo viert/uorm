@@ -1,6 +1,6 @@
 import AbstractModel, { Field, SaveRequired } from './abstract_model';
 import { FieldRequired, InvalidFieldType, ModelSaveRequired } from './errors';
-import { DB } from './db';
+import { initDB } from './db';
 
 export {
   AbstractModel,
@@ -9,5 +9,5 @@ export {
   FieldRequired,
   InvalidFieldType,
   ModelSaveRequired,
-  DB,
+  initDB,
 };
