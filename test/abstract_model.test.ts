@@ -3,6 +3,7 @@ import { ObjectID } from 'bson';
 
 class TestModel extends AbstractModel {
   @Field() field1: string;
+  @Field({ defaultValue: 'default_value', restricted: true }) field2: string;
 
   getFields(): string[] {
     return this.__fields__;
@@ -25,6 +26,7 @@ describe('abstract model', () => {
     expect(model.getFields()).toContain('field1');
     expect(model._id).toEqual(null);
     expect(model.field1).toEqual('hello');
+    expect(model.field2).toEqual('default_value');
   });
 
   it('type validation works', () => {
@@ -55,6 +57,16 @@ describe('abstract model', () => {
     expect(obj.field1).toEqual('value');
     expect(obj.isNew).toEqual(true);
     expect(obj.isValid).toEqual(true);
+  });
+
+  it('restricted fields are wiped out', () => {
+    let model = new TestModel({
+      field1: 'value',
+      field2: 'value2',
+    });
+    expect(model.field2).toEqual('value2');
+    let obj = model.toObject(['field2']);
+    expect(Object.keys(obj).length).toEqual(0);
   });
 
   it('method with SaveRequired fails before saving', () => {
