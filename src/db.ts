@@ -181,7 +181,9 @@ export async function initDB(config: {
   meta: DBConfig;
   shards: { [key: string]: DBConfig };
 }) {
-  db = await DB.create(config);
+  if (!db) {
+    db = await DB.create(config);
+  }
 }
 
 export default db;
