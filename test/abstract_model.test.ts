@@ -1,0 +1,68 @@
+import { AbstractModel, Field, SaveRequired } from '../src';
+import { ObjectID } from 'bson';
+
+class TestModel extends AbstractModel {
+  @Field() field1: string;
+
+  getFields(): string[] {
+    return this.__fields__;
+  }
+  async _delete_from_db() {}
+  async _save_to_db() {}
+
+  @SaveRequired
+  getField1() {
+    return this.field1;
+  }
+}
+
+describe('abstract model', () => {
+  it('constructor assigns values', () => {
+    let model = new TestModel({
+      field1: 'hello',
+    });
+    expect(model.getFields()).toContain('_id');
+    expect(model.getFields()).toContain('field1');
+    expect(model._id).toEqual(null);
+    expect(model.field1).toEqual('hello');
+  });
+
+  it('type validation works', () => {
+    let model = new TestModel({
+      field1: 'hello',
+    });
+    expect(model.isValid).toBeTruthy();
+
+    model = new TestModel({
+      field1: 135,
+    });
+    expect(model.isValid).toBeFalsy();
+  });
+
+  it('autotrim fields are autotrimmed', async () => {
+    let model = new TestModel({
+      field1: ' \t  trimmed   \n',
+    });
+    await model.save();
+    expect(model.field1).toEqual('trimmed');
+  });
+
+  it('properties are visible in toObject', () => {
+    let model = new TestModel({
+      field1: 'value',
+    });
+    let obj = model.toObject(['field1', 'isNew', 'isValid']);
+    expect(obj.field1).toEqual('value');
+    expect(obj.isNew).toEqual(true);
+    expect(obj.isValid).toEqual(true);
+  });
+
+  it('method with SaveRequired fails before saving', () => {
+    let model = new TestModel({
+      field1: 'value',
+    });
+    expect(model.getField1).toThrowError();
+    model._id = new ObjectID();
+    expect(model.getField1()).toEqual('value');
+  });
+});
