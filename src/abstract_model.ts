@@ -115,6 +115,37 @@ export function SaveRequired<T extends AbstractModel>(
 
 export default abstract class AbstractModel {
   @Field() _id: ObjectID | null;
+
+  constructor(data: { [key: string]: any } = {}) {
+    let fields = this.__fields__;
+    let defaults = this.__defaults__;
+
+    for (const field of fields) {
+      let calculatedValue: any;
+
+      if (field in data) {
+        // explicit assignment
+        calculatedValue = data[field];
+      } else if (field in defaults) {
+        // default values if no explicit value
+        let defaultValue = defaults[field];
+        if (defaultValue instanceof Array) {
+          calculatedValue = [...defaultValue];
+        } else if (defaultValue instanceof Object) {
+          calculatedValue = { ...defaultValue };
+        } else if (defaultValue instanceof Function) {
+          calculatedValue = defaultValue();
+        } else {
+          calculatedValue = defaultValue;
+        }
+      } else {
+        // null for all other fields
+        calculatedValue = null;
+      }
+      Reflect.set(this, field, calculatedValue);
+    }
+  }
+
   protected get __fields__(): string[] {
     return Reflect.getMetadata(FIELDS_META_KEY, this);
   }
@@ -192,36 +223,6 @@ export default abstract class AbstractModel {
     this._id = null;
 
     return this;
-  }
-
-  constructor(data: { [key: string]: any }) {
-    let fields = this.__fields__;
-    let defaults = this.__defaults__;
-
-    for (const field of fields) {
-      let calculatedValue: any;
-
-      if (field in data) {
-        // explicit assignment
-        calculatedValue = data[field];
-      } else if (field in defaults) {
-        // default values if no explicit value
-        let defaultValue = defaults[field];
-        if (defaultValue instanceof Array) {
-          calculatedValue = [...defaultValue];
-        } else if (defaultValue instanceof Object) {
-          calculatedValue = { ...defaultValue };
-        } else if (defaultValue instanceof Function) {
-          calculatedValue = defaultValue();
-        } else {
-          calculatedValue = defaultValue;
-        }
-      } else {
-        // null for all other fields
-        calculatedValue = null;
-      }
-      Reflect.set(this, field, calculatedValue);
-    }
   }
 
   protected __getField(key: string): any {
