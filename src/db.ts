@@ -1,10 +1,38 @@
-import { MongoClient, Db } from 'mongodb';
+import { MongoClient, Db, Cursor } from 'mongodb';
 import AbstractModel from './abstract_model';
+import { InvalidShardId } from './errors';
 
 interface DBConfig {
   uri: string;
   options?: Object;
   dbname: string;
+}
+
+function createObjectsCursor<T extends AbstractModel>(
+  cursor: Cursor,
+  ModelClass: new (data: Object) => T
+) {
+  return new Proxy(cursor, {
+    get(target, propKey) {
+      switch (propKey) {
+        case 'forEach':
+          return (callback: (item: object, ...rest: any[]) => void) => {
+            cursor.forEach((item: object, ...rest: any[]) => {
+              let obj: T = new ModelClass(item);
+              callback(obj, ...rest);
+            });
+          };
+        case Symbol.asyncIterator:
+          return async function* asyncIter() {
+            for await (const item of cursor) {
+              yield new ModelClass(item);
+            }
+          };
+        default:
+          return Reflect.get(target, propKey);
+      }
+    },
+  });
 }
 
 class DBShard {
@@ -50,10 +78,44 @@ class DBShard {
     collection: string,
     query: Object
   ): Promise<T> {
-    let coll = this.db.collection(collection);
-    let result = await coll.findOne(query);
+    const coll = this.db.collection(collection);
+    const result = await coll.findOne(query);
     return new ModelClass(result);
+  }
+
+  async get_objs<T extends AbstractModel>(
+    ModelClass: new (data: Object) => T,
+    collection: string,
+    query: Object
+  ): Promise<Cursor> {
+    const coll = this.db.collection(collection);
+    const cursor = coll.find(query);
+    return createObjectsCursor(cursor, ModelClass);
   }
 }
 
-export { DBShard };
+class DB {
+  meta: DBShard;
+  shards: { [key: string]: DBShard };
+
+  static async create(config: {
+    meta: DBConfig;
+    shards: { [key: string]: DBConfig };
+  }): Promise<DB> {
+    const db = new DB();
+    db.meta = await DBShard.create(config.meta);
+    for (const shardId in config.shards) {
+      db.shards[shardId] = await DBShard.create(config.shards[shardId]);
+    }
+    return db;
+  }
+
+  getShard(shardId: string): DBShard {
+    if (shardId in this.shards) {
+      return this.shards[shardId];
+    }
+    throw new InvalidShardId(shardId);
+  }
+}
+
+export { DB };

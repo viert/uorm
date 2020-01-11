@@ -15,3 +15,10 @@ export class ModelSaveRequired extends Error {
     super('This model must be saved first');
   }
 }
+
+export class InvalidShardId extends Error {
+  name = 'InvalidShardId';
+  constructor(shardId: string) {
+    super(`Shard "${shardId}" doesn't exist`);
+  }
+}
