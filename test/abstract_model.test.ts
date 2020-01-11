@@ -1,4 +1,4 @@
-import { AbstractModel, Field, SaveRequired } from '../src';
+import { AbstractModel, Field, SaveRequired, InvalidFieldType } from '../src';
 import { ObjectID } from 'bson';
 
 class TestModel extends AbstractModel {
@@ -64,5 +64,18 @@ describe('abstract model', () => {
     expect(model.getField1).toThrowError();
     model._id = new ObjectID();
     expect(model.getField1()).toEqual('value');
+  });
+
+  it('save fails if validation fails', async () => {
+    let model = new TestModel({
+      field1: 135,
+    });
+    let actualError: any = null;
+    try {
+      await model.save();
+    } catch (e) {
+      actualError = e;
+    }
+    expect(actualError).toBeInstanceOf(InvalidFieldType);
   });
 });
