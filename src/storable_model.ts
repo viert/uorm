@@ -30,8 +30,7 @@ export default class StorableModel extends AbstractModel {
     return this._coll;
   }
 
-  // this one is a hack to get the static __collection__ easily from
-  // an instance
+  // a hack to make '__collection__' both static and instance property
   get __collection__(): string {
     return (this.constructor as any)['__collection__'];
   }
@@ -40,25 +39,27 @@ export default class StorableModel extends AbstractModel {
     return db.meta;
   }
 
+  // a hack to make 'db' both static and instance property
+  get db(): DBShard {
+    return (this.constructor as any)['db'];
+  }
+
   async _delete_from_db() {
-    await StorableModel.db.deleteObj(this);
+    await this.db.deleteObj(this);
   }
 
   async _save_to_db() {
-    await StorableModel.db.saveObj(this);
+    await this.db.saveObj(this);
   }
 
   static find(query: { [key: string]: any }): Cursor {
-    return this.db.getObjs(StorableModel, '', query);
+    return this.db.getObjs(this, '', query);
   }
 
   static async findOne<T extends StorableModel>(query: {
     [key: string]: any;
   }): Promise<T> {
-    return this.db.getObj(
-      this.constructor,
-      this.__collection__,
-      query
-    ) as Promise<T>;
+    const obj = await this.db.getObj(this, this.__collection__, query);
+    return obj as T;
   }
 }

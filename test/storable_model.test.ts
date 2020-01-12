@@ -13,6 +13,7 @@ describe('storable model', () => {
       meta: {
         uri: 'mongodb://localhost',
         dbname: 'exya_dev_meta',
+        options: { useUnifiedTopology: true },
       },
       shards: {},
     });

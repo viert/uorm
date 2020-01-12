@@ -18,14 +18,22 @@ interface DBConfig {
 
 function createObjectsCursor<T extends AbstractModel>(
   cursor: Cursor,
+  shardId: string | null,
   ModelClass: new (data: Object) => T
 ) {
   return new Proxy(cursor, {
     get(target, propKey) {
       switch (propKey) {
+        case 'shardId':
+          return shardId;
         case 'forEach':
-          return (callback: (item: object, ...rest: any[]) => void) => {
-            cursor.forEach((item: object, ...rest: any[]) => {
+          return (
+            callback: (item: { [key: string]: any }, ...rest: any[]) => void
+          ) => {
+            cursor.forEach((item: { [key: string]: any }, ...rest: any[]) => {
+              if (shardId) {
+                item['shard_id'] = shardId;
+              }
               let obj: T = new ModelClass(item);
               callback(obj, ...rest);
             });
@@ -33,6 +41,9 @@ function createObjectsCursor<T extends AbstractModel>(
         case Symbol.asyncIterator:
           return async function* asyncIter() {
             for await (const item of cursor) {
+              if (shardId) {
+                item['shard_id'] = shardId;
+              }
               yield new ModelClass(item);
             }
           };
@@ -50,15 +61,10 @@ export class DBShard {
   private constructor(config: DBConfig, private shardId: string | null = null) {
     let { uri, dbname, options = {} } = config;
     this.config = { uri, dbname, options };
-    if (shardId) {
-      console.log(`instantiated shard ${this.shardId}`);
-    } else {
-      console.log('instantiated meta shard');
-    }
   }
 
   async initConnection() {
-    console.log('creating a read/write mongo connection');
+    // console.log('creating a read/write mongo connection');
     const client = new MongoClient(this.config.uri, this.config.options);
     return new Promise((resolve, reject) => {
       client.connect((err: Error | null) => {
@@ -86,23 +92,25 @@ export class DBShard {
   }
 
   async getObj<T extends StorableModel>(
-    ModelConstructor: any,
+    ModelClass: new (data: { [key: string]: any }) => T,
     collection: string,
     query: Object
   ): Promise<T> {
     const coll = this.db.collection(collection);
     const result = await coll.findOne(query);
-    return new ModelConstructor(result) as T;
+
+    const obj: T = new ModelClass(result);
+    return obj;
   }
 
   getObjs<T extends AbstractModel>(
-    ModelClass: new (data: Object) => T,
+    ModelClass: new (data: { [key: string]: any }) => T,
     collection: string,
     query: { [key: string]: any }
   ): Cursor {
     const coll = this.db.collection(collection);
     const cursor = coll.find(query);
-    return createObjectsCursor(cursor, ModelClass);
+    return createObjectsCursor(cursor, this.shardId, ModelClass);
   }
 
   async getObjsProjected(
