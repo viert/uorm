@@ -43,14 +43,18 @@ function createObjectsCursor<T extends AbstractModel>(
   });
 }
 
-class DBShard {
+export class DBShard {
   private config: DBConfig;
   private database: Db | null = null;
 
   private constructor(config: DBConfig, private shardId: string | null = null) {
     let { uri, dbname, options = {} } = config;
     this.config = { uri, dbname, options };
-    console.log(`instantiated shard ${this.shardId}`);
+    if (shardId) {
+      console.log(`instantiated shard ${this.shardId}`);
+    } else {
+      console.log('instantiated meta shard');
+    }
   }
 
   async initConnection() {
@@ -81,21 +85,21 @@ class DBShard {
     return this.database;
   }
 
-  async getObj<T extends AbstractModel>(
-    ModelClass: new (data: Object) => T,
+  async getObj<T extends StorableModel>(
+    ModelConstructor: any,
     collection: string,
     query: Object
   ): Promise<T> {
     const coll = this.db.collection(collection);
     const result = await coll.findOne(query);
-    return new ModelClass(result);
+    return new ModelConstructor(result) as T;
   }
 
-  async getObjs<T extends AbstractModel>(
+  getObjs<T extends AbstractModel>(
     ModelClass: new (data: Object) => T,
     collection: string,
     query: { [key: string]: any }
-  ): Promise<Cursor> {
+  ): Cursor {
     const coll = this.db.collection(collection);
     const cursor = coll.find(query);
     return createObjectsCursor(cursor, ModelClass);
@@ -152,38 +156,52 @@ class DBShard {
 }
 
 class DB {
-  meta: DBShard;
-  shards: { [key: string]: DBShard };
+  private _meta: DBShard;
+  private _shards: { [key: string]: DBShard };
+  initialized: boolean = false;
 
   static async create(config: {
     meta: DBConfig;
     shards: { [key: string]: DBConfig };
   }): Promise<DB> {
     const db = new DB();
-    db.meta = await DBShard.create(config.meta);
-    for (const shardId in config.shards) {
-      db.shards[shardId] = await DBShard.create(config.shards[shardId]);
-    }
+    await db.init(config);
     return db;
   }
 
+  async init(config: {
+    meta: DBConfig;
+    shards: { [key: string]: DBConfig };
+  }): Promise<void> {
+    this._meta = await DBShard.create(config.meta);
+    for (const shardId in config.shards) {
+      this._shards[shardId] = await DBShard.create(config.shards[shardId]);
+    }
+    this.initialized = true;
+  }
+
   getShard(shardId: string): DBShard {
-    if (shardId in this.shards) {
-      return this.shards[shardId];
+    if (shardId in this._shards) {
+      return this._shards[shardId];
     }
     throw new InvalidShardId(shardId);
   }
-}
 
-let db: DB;
+  get meta(): DBShard {
+    if (!this.initialized) {
+      throw new Error('DB is not initialized');
+    }
+    return this._meta;
+  }
 
-export async function initDB(config: {
-  meta: DBConfig;
-  shards: { [key: string]: DBConfig };
-}) {
-  if (!db) {
-    db = await DB.create(config);
+  get shards(): { [key: string]: DBShard } {
+    if (!this.initialized) {
+      throw new Error('DB is not initialized');
+    }
+    return this._shards;
   }
 }
+
+let db: DB = new DB();
 
 export default db;

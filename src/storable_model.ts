@@ -1,5 +1,7 @@
+import { Cursor } from 'mongodb';
+
 import AbstractModel from './abstract_model';
-import db from 'db';
+import db, { DBShard } from './db';
 
 function snakeCase(name: string) {
   let result: string = '';
@@ -19,20 +21,44 @@ function snakeCase(name: string) {
 }
 
 export default class StorableModel extends AbstractModel {
-  private _coll: string | null = null;
+  protected static _coll: string | null = null;
 
-  get __collection__(): string {
+  static get __collection__(): string {
     if (!this._coll) {
       this._coll = snakeCase(this.constructor.name);
     }
     return this._coll;
   }
 
+  // this one is a hack to get the static __collection__ easily from
+  // an instance
+  get __collection__(): string {
+    return (this.constructor as any)['__collection__'];
+  }
+
+  static get db(): DBShard {
+    return db.meta;
+  }
+
   async _delete_from_db() {
-    await db.meta.deleteObj(this);
+    await StorableModel.db.deleteObj(this);
   }
 
   async _save_to_db() {
-    await db.meta.saveObj(this);
+    await StorableModel.db.saveObj(this);
+  }
+
+  static find(query: { [key: string]: any }): Cursor {
+    return this.db.getObjs(StorableModel, '', query);
+  }
+
+  static async findOne<T extends StorableModel>(query: {
+    [key: string]: any;
+  }): Promise<T> {
+    return this.db.getObj(
+      this.constructor,
+      this.__collection__,
+      query
+    ) as Promise<T>;
   }
 }
