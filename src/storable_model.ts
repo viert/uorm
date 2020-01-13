@@ -2,6 +2,7 @@ import { Cursor, UpdateWriteOpResult, ObjectID } from 'mongodb';
 
 import AbstractModel from './abstract_model';
 import db, { DBShard } from './db';
+import { ModelDestroyed } from './errors';
 
 function snakeCase(name: string) {
   let result: string = '';
@@ -75,6 +76,21 @@ export default class StorableModel extends AbstractModel {
       }
     }
     return await this.save(skipCallback);
+  }
+
+  async reload(): Promise<this> {
+    if (this.isNew) return this;
+    let tmp = await (this.constructor as any).findOne({ _id: this._id });
+    if (!tmp) {
+      throw new ModelDestroyed();
+    }
+
+    this.__fields__.forEach(field => {
+      if (field === '_id') return;
+      this.__setField(field, tmp.__getField(field));
+    });
+
+    return this;
   }
 
   protected static _preprocessQuery(query: {

@@ -22,3 +22,10 @@ export class InvalidShardId extends Error {
     super(`Shard "${shardId}" doesn't exist`);
   }
 }
+
+export class ModelDestroyed extends Error {
+  name = 'ModelDestroyed';
+  constructor() {
+    super('model has been deleted from db');
+  }
+}

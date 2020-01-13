@@ -83,4 +83,31 @@ describe('storable model', () => {
       expect(model.field2).toEqual('mymodel_updated');
     }
   });
+
+  it('updateMany updates according to query', async () => {
+    let model1: TestModel | null = new TestModel({
+      field1: 'original_value',
+      field2: 'mymodel_update_test',
+    });
+    await model1.save();
+    let model2: TestModel | null = new TestModel({
+      field1: 'original_value',
+      field2: 'mymodel_update_test',
+    });
+    await model2.save();
+    let model3: TestModel | null = new TestModel({
+      field1: 'do_not_modify',
+      field2: 'mymodel_update_test',
+    });
+    await model3.save();
+
+    await TestModel.updateMany(
+      { field1: 'original_value' },
+      { $set: { field2: 'mymodel_updated' } }
+    );
+    await Promise.all([model1.reload(), model2.reload(), model3.reload()]);
+    expect(model1.field2).toEqual('mymodel_updated');
+    expect(model2.field2).toEqual('mymodel_updated');
+    expect(model3.field2).toEqual('mymodel_update_test');
+  });
 });
