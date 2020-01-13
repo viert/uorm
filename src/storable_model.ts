@@ -1,4 +1,4 @@
-import { Cursor } from 'mongodb';
+import { Cursor, UpdateWriteOpResult, ObjectID } from 'mongodb';
 
 import AbstractModel from './abstract_model';
 import db, { DBShard } from './db';
@@ -53,13 +53,65 @@ export default class StorableModel extends AbstractModel {
   }
 
   static find(query: { [key: string]: any }): Cursor {
-    return this.db.getObjs(this, '', query);
+    return this.db.getObjs(this, '', this._preprocessQuery(query));
   }
 
   static async findOne<T extends StorableModel>(query: {
     [key: string]: any;
-  }): Promise<T> {
-    const obj = await this.db.getObj(this, this.__collection__, query);
+  }): Promise<T | null> {
+    const obj = await this.db.getObj(
+      this,
+      this.__collection__,
+      this._preprocessQuery(query)
+    );
     return obj as T;
+  }
+
+  async update(data: { [key: string]: any }, skipCallback: boolean = false) {
+    const rejected = this.__rejected_fields__;
+    for (const field of this.__fields__) {
+      if (field in data && !rejected.includes(field) && field !== '_id') {
+        this.__setField(field, data[field]);
+      }
+    }
+    return await this.save(skipCallback);
+  }
+
+  protected static _preprocessQuery(query: {
+    [key: string]: any;
+  }): { [key: string]: any } {
+    return query;
+  }
+
+  static async updateMany(
+    query: { [key: string]: any },
+    attrs: { [key: string]: any }
+  ): Promise<UpdateWriteOpResult> {
+    return await this.db.updateQuery(
+      this.__collection__,
+      this._preprocessQuery(query),
+      attrs
+    );
+  }
+
+  static async get<T extends StorableModel>(
+    expression: any,
+    raiseNotFound: string | null = null
+  ): Promise<T | null> {
+    if (expression === null) return null;
+    let query: { [key: string]: any };
+    try {
+      let idExpr = new ObjectID(expression);
+      query = { _id: idExpr };
+    } catch (e) {
+      let keyField = `${this.__key_field__}`;
+      query = { [keyField]: expression };
+    }
+
+    let result = await this.findOne(query);
+    if (result === null && raiseNotFound !== null) {
+      throw new Error(raiseNotFound);
+    }
+    return result as T | null;
   }
 }

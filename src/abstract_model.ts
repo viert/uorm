@@ -131,8 +131,6 @@ export default abstract class AbstractModel {
         let defaultValue = defaults[field];
         if (defaultValue instanceof Array) {
           calculatedValue = [...defaultValue];
-        } else if (defaultValue instanceof Object) {
-          calculatedValue = { ...defaultValue };
         } else if (defaultValue instanceof Function) {
           calculatedValue = defaultValue();
         } else {
@@ -174,8 +172,8 @@ export default abstract class AbstractModel {
     return Reflect.getMetadata(AUTO_TRIM_FIELDS_META_KEY, this);
   }
 
-  __key_field__: string | null = null;
-  __indexes__: Array<string | Array<any>> = [];
+  static __key_field__: string | null = null;
+  static __indexes__: Array<string | Array<any>> = [];
 
   get isNew(): boolean {
     return this._id === null;

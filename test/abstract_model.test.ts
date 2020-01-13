@@ -1,9 +1,14 @@
 import { AbstractModel, Field, SaveRequired, InvalidFieldType } from '../src';
 import { ObjectID } from 'bson';
 
+function callable(): number {
+  return 4;
+}
+
 class TestModel extends AbstractModel {
-  @Field() field1: string;
+  @Field({ required: true }) field1: string;
   @Field({ defaultValue: 'default_value', restricted: true }) field2: string;
+  @Field({ defaultValue: callable }) field3: number;
 
   getFields(): string[] {
     return this.__fields__;
@@ -20,18 +25,30 @@ class TestModel extends AbstractModel {
 describe('abstract model', () => {
   it('constructor assigns values', () => {
     let model = new TestModel({
-      field1: 'hello',
+      field1: 'value1',
     });
     expect(model.getFields()).toContain('_id');
     expect(model.getFields()).toContain('field1');
     expect(model._id).toEqual(null);
-    expect(model.field1).toEqual('hello');
+    expect(model.field1).toEqual('value1');
     expect(model.field2).toEqual('default_value');
+  });
+
+  it('incomplete model fails to validate', () => {
+    let model = new TestModel({});
+    expect(model.isValid).toBeFalsy();
+  });
+
+  it('callable defaults produce values', () => {
+    let model = new TestModel({
+      field1: 'value1',
+    });
+    expect(model.field3).toEqual(4);
   });
 
   it('type validation works', () => {
     let model = new TestModel({
-      field1: 'hello',
+      field1: 'value1',
     });
     expect(model.isValid).toBeTruthy();
 

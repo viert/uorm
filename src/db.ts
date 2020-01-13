@@ -57,15 +57,23 @@ function createObjectsCursor<T extends AbstractModel>(
 export class DBShard {
   private config: DBConfig;
   private database: Db | null = null;
+  private mongoClient: new (...args: any[]) => MongoClient = MongoClient;
 
-  private constructor(config: DBConfig, private shardId: string | null = null) {
+  private constructor(
+    config: DBConfig,
+    private shardId: string | null = null,
+    overrideMongoClient: any
+  ) {
     let { uri, dbname, options = {} } = config;
     this.config = { uri, dbname, options };
+    if (overrideMongoClient) {
+      this.mongoClient = overrideMongoClient;
+    }
   }
 
   async initConnection() {
     // console.log('creating a read/write mongo connection');
-    const client = new MongoClient(this.config.uri, this.config.options);
+    const client = new this.mongoClient(this.config.uri, this.config.options);
     return new Promise((resolve, reject) => {
       client.connect((err: Error | null) => {
         if (err === null) {
@@ -79,9 +87,10 @@ export class DBShard {
 
   static async create(
     config: DBConfig,
-    shardId: string | null = null
+    shardId: string | null = null,
+    overrideMongoClient: any = null
   ): Promise<DBShard> {
-    const shard = new DBShard(config, shardId);
+    const shard = new DBShard(config, shardId, overrideMongoClient);
     await shard.initConnection();
     return shard;
   }
@@ -95,12 +104,13 @@ export class DBShard {
     ModelClass: new (data: { [key: string]: any }) => T,
     collection: string,
     query: Object
-  ): Promise<T> {
+  ): Promise<T | null> {
     const coll = this.db.collection(collection);
     const result = await coll.findOne(query);
-
-    const obj: T = new ModelClass(result);
-    return obj;
+    if (result === null) {
+      return null;
+    }
+    return new ModelClass(result);
   }
 
   getObjs<T extends AbstractModel>(
@@ -177,13 +187,20 @@ class DB {
     return db;
   }
 
-  async init(config: {
-    meta: DBConfig;
-    shards: { [key: string]: DBConfig };
-  }): Promise<void> {
-    this._meta = await DBShard.create(config.meta);
+  async init(
+    config: {
+      meta: DBConfig;
+      shards: { [key: string]: DBConfig };
+    },
+    overrideMongoClient: any = null
+  ): Promise<void> {
+    this._meta = await DBShard.create(config.meta, null, overrideMongoClient);
     for (const shardId in config.shards) {
-      this._shards[shardId] = await DBShard.create(config.shards[shardId]);
+      this._shards[shardId] = await DBShard.create(
+        config.shards[shardId],
+        shardId,
+        overrideMongoClient
+      );
     }
     this.initialized = true;
   }
