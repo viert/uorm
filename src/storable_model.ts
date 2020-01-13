@@ -53,7 +53,7 @@ export default class StorableModel extends AbstractModel {
     await this.db.saveObj(this);
   }
 
-  static find(query: { [key: string]: any }): Cursor {
+  static find(query: { [key: string]: any } = {}): Cursor {
     return this.db.getObjs(this, '', this._preprocessQuery(query));
   }
 

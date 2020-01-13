@@ -101,7 +101,7 @@ export class DBShard {
   }
 
   async getObj<T extends StorableModel>(
-    ModelClass: new (data: { [key: string]: any }) => T,
+    ModelClass: new (...args: any[]) => T,
     collection: string,
     query: Object
   ): Promise<T | null> {
@@ -113,8 +113,8 @@ export class DBShard {
     return new ModelClass(result);
   }
 
-  getObjs<T extends AbstractModel>(
-    ModelClass: new (data: { [key: string]: any }) => T,
+  getObjs<T extends StorableModel>(
+    ModelClass: new (...args: any[]) => T,
     collection: string,
     query: { [key: string]: any }
   ): Cursor {

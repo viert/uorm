@@ -29,3 +29,10 @@ export class ModelDestroyed extends Error {
     super('model has been deleted from db');
   }
 }
+
+export class MissingShardId extends Error {
+  name = 'MissingShardId';
+  constructor() {
+    super('shard_id is missing from ShardedModel');
+  }
+}
