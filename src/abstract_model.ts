@@ -116,6 +116,10 @@ export function SaveRequired<T extends AbstractModel>(
 export default abstract class AbstractModel {
   @Field() _id: ObjectID | null;
 
+  cls<T extends AbstractModel>(): new (...args: any[]) => T {
+    return this.constructor as new (...args: any[]) => T;
+  }
+
   constructor(data: { [key: string]: any } = {}) {
     let fields = this.__fields__;
     let defaults = this.__defaults__;

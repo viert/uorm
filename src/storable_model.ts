@@ -57,15 +57,15 @@ export default class StorableModel extends AbstractModel {
     return this.db.getObjs(this, '', this._preprocessQuery(query));
   }
 
-  static async findOne<T extends StorableModel>(query: {
-    [key: string]: any;
-  }): Promise<T | null> {
+  static async findOne<T extends typeof StorableModel>(
+    this: T,
+    query: { [key: string]: any }
+  ): Promise<InstanceType<T>> {
     const obj = await this.db.getObj(
-      this,
       this.__collection__,
       this._preprocessQuery(query)
     );
-    return obj as T;
+    return new this(obj) as InstanceType<T>;
   }
 
   async update(data: { [key: string]: any }, skipCallback: boolean = false) {

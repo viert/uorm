@@ -100,17 +100,25 @@ export class DBShard {
     return this.database;
   }
 
-  async getObj<T extends StorableModel>(
-    ModelClass: new (...args: any[]) => T,
+  // async getObj<T extends StorableModel>(
+  //   ModelClass: new (...args: any[]) => T,
+  //   collection: string,
+  //   query: Object
+  // ): Promise<T | null> {
+  //   const coll = this.db.collection(collection);
+  //   const result = await coll.findOne(query);
+  //   if (result === null) {
+  //     return null;
+  //   }
+  //   return new ModelClass(result);
+  // }
+  async getObj(
     collection: string,
-    query: Object
-  ): Promise<T | null> {
+    query: { [key: string]: any }
+  ): Promise<{ [key: string]: any }> {
     const coll = this.db.collection(collection);
-    const result = await coll.findOne(query);
-    if (result === null) {
-      return null;
-    }
-    return new ModelClass(result);
+    const obj = await coll.findOne(query);
+    return obj as { [key: string]: any };
   }
 
   getObjs<T extends StorableModel>(
@@ -152,7 +160,7 @@ export class DBShard {
   async deleteObj<T extends StorableModel>(obj: T): Promise<void> {
     if (obj.isNew) return;
     const coll = this.db.collection(obj.__collection__);
-    coll.deleteOne({ _id: obj._id });
+    await coll.deleteOne({ _id: obj._id });
   }
 
   async deleteQuery(
@@ -160,7 +168,7 @@ export class DBShard {
     query: { [key: string]: any }
   ): Promise<DeleteWriteOpResultObject> {
     const coll = this.db.collection(collection);
-    return coll.deleteMany(query);
+    return await coll.deleteMany(query);
   }
 
   async updateQuery(
@@ -169,7 +177,7 @@ export class DBShard {
     update: { [key: string]: any }
   ): Promise<UpdateWriteOpResult> {
     const coll = this.db.collection(collection);
-    return coll.updateMany(query, update);
+    return await coll.updateMany(query, update);
   }
 }
 
