@@ -22,7 +22,7 @@ function validateType(value: any, type: any): boolean {
 /**
  * Field decorates a StorableModel property to make it a storable field
  * @param config
- *    optional parameter with field settings like
+ *    optional parameter containing field settings like
  *    - required
  *    - rejected
  *    - restricted

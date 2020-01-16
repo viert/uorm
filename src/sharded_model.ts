@@ -1,4 +1,4 @@
-import AbstractModel from 'abstract_model';
+import AbstractModel from './abstract_model';
 import db, { DBShard } from './db';
 import {
   Cursor,
@@ -6,7 +6,7 @@ import {
   UpdateWriteOpResult,
   DeleteWriteOpResultObject,
 } from 'mongodb';
-import { MissingShardId, ModelDestroyed } from 'errors';
+import { MissingShardId, ModelDestroyed } from './errors';
 
 export default class ShardedModel extends AbstractModel {
   constructor(public readonly shardId: string, data: { [key: string]: any }) {

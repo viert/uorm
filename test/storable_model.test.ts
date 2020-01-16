@@ -1,5 +1,6 @@
 import { StorableModel, Field, db } from '../src';
 import { Cursor } from 'mongodb';
+import { randomString } from './util';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -15,13 +16,7 @@ class TestModel extends StorableModel {
   @Field({ defaultValue: callable }) callable_default_field: number;
 }
 
-const randomDatabase =
-  Math.random()
-    .toString(36)
-    .substring(2, 15) +
-  Math.random()
-    .toString(36)
-    .substring(2, 15);
+const randomDatabase = randomString();
 
 describe('storable model', () => {
   beforeAll(async done => {
