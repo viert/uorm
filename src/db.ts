@@ -7,7 +7,6 @@ import {
 } from 'mongodb';
 
 import AbstractModel from './abstract_model';
-import StorableModel from './storable_model';
 import { InvalidShardId } from './errors';
 
 interface DBConfig {
@@ -46,6 +45,11 @@ function createObjectsCursor<T extends AbstractModel>(
               }
               yield new ModelClass(item);
             }
+          };
+        case 'next':
+          return async () => {
+            let obj = await cursor.next();
+            return new ModelClass(obj);
           };
         default:
           return Reflect.get(target, propKey);
@@ -115,13 +119,16 @@ export class DBShard {
   async getObj(
     collection: string,
     query: { [key: string]: any }
-  ): Promise<{ [key: string]: any }> {
+  ): Promise<{ [key: string]: any } | null> {
     const coll = this.db.collection(collection);
     const obj = await coll.findOne(query);
+    if (obj === null) {
+      return null;
+    }
     return obj as { [key: string]: any };
   }
 
-  getObjs<T extends StorableModel>(
+  getObjs<T extends AbstractModel>(
     ModelClass: new (...args: any[]) => T,
     collection: string,
     query: { [key: string]: any }
@@ -141,7 +148,7 @@ export class DBShard {
     return cursor;
   }
 
-  async saveObj<T extends StorableModel>(obj: T): Promise<void> {
+  async saveObj<T extends AbstractModel>(obj: T): Promise<void> {
     const coll = this.db.collection(obj.__collection__);
 
     if (obj.isNew) {
@@ -157,7 +164,7 @@ export class DBShard {
     }
   }
 
-  async deleteObj<T extends StorableModel>(obj: T): Promise<void> {
+  async deleteObj<T extends AbstractModel>(obj: T): Promise<void> {
     if (obj.isNew) return;
     const coll = this.db.collection(obj.__collection__);
     await coll.deleteOne({ _id: obj._id });

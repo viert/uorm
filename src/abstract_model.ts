@@ -113,11 +113,49 @@ export function SaveRequired<T extends AbstractModel>(
   };
 }
 
+function snakeCase(name: string) {
+  let result: string = '';
+  for (let i = 0; i < name.length; i++) {
+    const sym = name.charAt(i);
+    const code = name.charCodeAt(i);
+    if (65 <= code && code <= 90) {
+      if (i) {
+        result += '_';
+      }
+      result += sym.toLowerCase();
+    } else {
+      result += sym;
+    }
+  }
+  return result;
+}
+
 export default abstract class AbstractModel {
   @Field() _id: ObjectID | null;
+  protected static _coll: string | null = null;
 
-  cls<T extends AbstractModel>(): new (...args: any[]) => T {
-    return this.constructor as new (...args: any[]) => T;
+  static get __collection__(): string {
+    if (!this._coll) {
+      this._coll = snakeCase(this.constructor.name);
+    }
+    return this._coll;
+  }
+
+  // a hack to make '__collection__' both static and instance property
+  get __collection__(): string {
+    return (<typeof AbstractModel>this.constructor).__collection__;
+  }
+
+  protected static _preprocessQuery(query: {
+    [key: string]: any;
+  }): { [key: string]: any } {
+    return query;
+  }
+
+  protected _preprocessQuery(query: {
+    [key: string]: any;
+  }): { [key: string]: any } {
+    return (this.constructor as any)._preprocessQuery(query);
   }
 
   constructor(data: { [key: string]: any } = {}) {
@@ -183,7 +221,7 @@ export default abstract class AbstractModel {
     return this._id === null;
   }
 
-  async save(skipCallback: boolean = true) {
+  async save(skipCallback: boolean = true): Promise<void> {
     const isNew = this.isNew;
 
     if (!skipCallback) {
@@ -205,13 +243,24 @@ export default abstract class AbstractModel {
     if (!skipCallback) {
       await this._after_save(isNew);
     }
-
-    return this;
   }
 
-  async destroy(skipCallback: boolean = false) {
+  async update(
+    data: { [key: string]: any },
+    skipCallback: boolean = false
+  ): Promise<void> {
+    const rejected = this.__rejected_fields__;
+    for (const field of this.__fields__) {
+      if (field in data && !rejected.includes(field) && field !== '_id') {
+        this.__setField(field, data[field]);
+      }
+    }
+    await this.save(skipCallback);
+  }
+
+  async destroy(skipCallback: boolean = false): Promise<void> {
     if (this.isNew) {
-      return this;
+      return;
     }
 
     if (!skipCallback) {
@@ -223,8 +272,6 @@ export default abstract class AbstractModel {
       await this._after_delete();
     }
     this._id = null;
-
-    return this;
   }
 
   protected __getField(key: string): any {

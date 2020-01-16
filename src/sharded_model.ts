@@ -1,10 +1,15 @@
-import StorableModel from './storable_model';
+import AbstractModel from 'abstract_model';
 import db, { DBShard } from './db';
-import { Cursor, ObjectID } from 'mongodb';
-import { MissingShardId } from 'errors';
+import {
+  Cursor,
+  ObjectID,
+  UpdateWriteOpResult,
+  DeleteWriteOpResultObject,
+} from 'mongodb';
+import { MissingShardId, ModelDestroyed } from 'errors';
 
-export default class ShardedModel extends StorableModel {
-  constructor(data: { [key: string]: any }, public readonly shardId: string) {
+export default class ShardedModel extends AbstractModel {
+  constructor(public readonly shardId: string, data: { [key: string]: any }) {
     super(data);
   }
 
@@ -12,46 +17,98 @@ export default class ShardedModel extends StorableModel {
     return db.getShard(this.shardId);
   }
 
-  static find(query: { [key: string]: any } = {}, shardId?: string): Cursor {
-    if (!shardId) throw new MissingShardId();
-
-    return db
-      .getShard(shardId)
-      .getObjs(this, this.__collection__, this._preprocessQuery(query));
+  async _delete_from_db() {
+    await this.db.deleteObj(this);
   }
 
-  static async findOne<T extends ShardedModel>(
-    query: {
-      [key: string]: any;
-    },
-    shardId?: string
-  ): Promise<T | null> {
+  async _save_to_db() {
+    await this.db.saveObj(this);
+  }
+
+  static find(shardId: string, query: { [key: string]: any } = {}): Cursor {
+    return db.getShard(shardId).getObjs(this, '', this._preprocessQuery(query));
+  }
+
+  static async findOne<T extends typeof ShardedModel>(
+    this: T,
+    shardId: string,
+    query: { [key: string]: any }
+  ): Promise<InstanceType<T> | null> {
     if (!shardId) throw new MissingShardId();
     const obj = await db
       .getShard(shardId)
-      .getObj(this, this.__collection__, this._preprocessQuery(query));
-    return obj as T;
+      .getObj(this.__collection__, this._preprocessQuery(query));
+    if (!obj) return null;
+    return new this(shardId, obj) as InstanceType<T>;
   }
 
-  static async get<T extends ShardedModel>(
+  static async get<T extends typeof ShardedModel>(
+    this: T,
+    shardId: string,
     expression: any,
-    raiseNotFound: string | null = null,
-    shardId?: string
-  ): Promise<T | null> {
+    raiseNotFound: string | null = null
+  ): Promise<InstanceType<T> | null> {
     if (expression === null) return null;
     let query: { [key: string]: any };
-    try {
-      let idExpr = new ObjectID(expression);
-      query = { _id: idExpr };
-    } catch (e) {
-      let keyField = `${this.__key_field__}`;
-      query = { [keyField]: expression };
+    if (expression instanceof ObjectID) {
+      query = { _id: expression };
+    } else {
+      try {
+        let idExpr = new ObjectID(expression);
+        query = { _id: idExpr };
+      } catch (e) {
+        let keyField = `${this.__key_field__}`;
+        query = { [keyField]: expression };
+      }
     }
 
-    let result = await this.findOne(query, shardId);
+    let result = await this.findOne(shardId, query);
     if (result === null && raiseNotFound !== null) {
       throw new Error(raiseNotFound);
     }
-    return result as T | null;
+    return result as InstanceType<T> | null;
+  }
+
+  async reload<T extends ShardedModel>(this: T): Promise<void> {
+    if (this.isNew) return;
+    let constructor = <typeof ShardedModel>this.constructor;
+
+    let tmp = await constructor.findOne(this.shardId, {
+      _id: this._id,
+    });
+
+    if (!tmp) {
+      throw new ModelDestroyed();
+    }
+
+    this.__fields__.forEach(field => {
+      if (field === '_id') return;
+      this.__setField(field, (<ShardedModel>tmp).__getField(field));
+    });
+  }
+
+  static async updateMany(
+    shardId: string,
+    query: { [key: string]: any },
+    attrs: { [key: string]: any }
+  ): Promise<UpdateWriteOpResult> {
+    return await db
+      .getShard(shardId)
+      .updateQuery(this.__collection__, this._preprocessQuery(query), attrs);
+  }
+
+  static async destroyMany(
+    shardId: string,
+    query: {
+      [key: string]: any;
+    }
+  ): Promise<DeleteWriteOpResultObject> {
+    return await db
+      .getShard(shardId)
+      .deleteQuery(this.__collection__, this._preprocessQuery(query));
+  }
+
+  static async destroyAll(shardId: string) {
+    return await this.destroyMany(shardId, {});
   }
 }

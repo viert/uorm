@@ -1,4 +1,5 @@
 import { StorableModel, Field, db } from '../src';
+import { Cursor } from 'mongodb';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -32,6 +33,11 @@ describe('storable model', () => {
       },
       shards: {},
     });
+    done();
+  });
+
+  beforeEach(async done => {
+    await TestModel.destroyAll();
     done();
   });
 
@@ -109,5 +115,67 @@ describe('storable model', () => {
     expect(model1.field2).toEqual('mymodel_updated');
     expect(model2.field2).toEqual('mymodel_updated');
     expect(model3.field2).toEqual('mymodel_update_test');
+  });
+
+  it('reload() updates fields', async () => {
+    let model1: TestModel | null = new TestModel({
+      field1: 'original_value',
+      field2: 'update_test',
+    });
+    await model1.save();
+    let model2 = await TestModel.get(model1._id);
+    if (model2 === null) {
+      fail('model is null');
+    }
+    await model2.update({ field2: 'updated' });
+    expect(model2.field2).toEqual('updated');
+    await model1.reload();
+    expect(model1.field2).toEqual('updated');
+  });
+
+  it('find() returns a proper cursor', async () => {
+    let model1: TestModel | null = new TestModel({
+      field1: 'original_value',
+      field2: 'mymodel_update_test',
+    });
+    await model1.save();
+    let model2: TestModel | null = new TestModel({
+      field1: 'original_value',
+      field2: 'mymodel_update_test',
+    });
+    await model2.save();
+    let model3: TestModel | null = new TestModel({
+      field1: 'do_not_modify',
+      field2: 'mymodel_update_test',
+    });
+    await model3.save();
+
+    let cursor = TestModel.find();
+    expect(cursor).toBeInstanceOf(Cursor);
+    expect(await cursor.count()).toEqual(3);
+
+    let count = 0;
+    for await (const item of cursor) {
+      expect(item).toBeInstanceOf(TestModel);
+      count++;
+    }
+    expect(count).toEqual(3);
+
+    cursor = TestModel.find().skip(2);
+    expect(await cursor.count()).toEqual(3);
+
+    count = 0;
+    for await (const item of cursor) {
+      expect(item).toBeInstanceOf(TestModel);
+      count++;
+    }
+    expect(count).toEqual(1);
+
+    cursor = TestModel.find();
+    expect(await cursor.next()).toBeInstanceOf(TestModel);
+
+    await cursor.forEach(item => {
+      expect(item).toBeInstanceOf(TestModel);
+    });
   });
 });

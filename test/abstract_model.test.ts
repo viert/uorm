@@ -6,6 +6,7 @@ function callable(): number {
 }
 
 class TestModel extends AbstractModel {
+  static __key_field__ = 'field1';
   @Field({ required: true }) field1: string;
   @Field({ defaultValue: 'default_value', restricted: true }) field2: string;
   @Field({ defaultValue: callable }) field3: number;
