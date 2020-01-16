@@ -143,7 +143,7 @@ export default abstract class AbstractModel {
 
   // a hack to make '__collection__' both static and instance property
   get __collection__(): string {
-    return (<typeof AbstractModel>this.constructor).__collection__;
+    return (this.constructor as typeof AbstractModel).__collection__;
   }
 
   protected static _preprocessQuery(query: {

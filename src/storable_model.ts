@@ -16,7 +16,7 @@ export default class StorableModel extends AbstractModel {
 
   // a hack to make 'db' both static and instance property
   get db(): DBShard {
-    return (<typeof StorableModel>this.constructor).db;
+    return (this.constructor as typeof StorableModel).db;
   }
 
   async _delete_from_db() {
@@ -81,7 +81,7 @@ export default class StorableModel extends AbstractModel {
 
   async reload<T extends StorableModel>(this: T): Promise<void> {
     if (this.isNew) return;
-    let constructor = <typeof StorableModel>this.constructor;
+    let constructor = this.constructor as typeof StorableModel;
 
     let tmp = await constructor.findOne({
       _id: this._id,
@@ -93,7 +93,7 @@ export default class StorableModel extends AbstractModel {
 
     this.__fields__.forEach(field => {
       if (field === '_id') return;
-      this.__setField(field, (<StorableModel>tmp).__getField(field));
+      this.__setField(field, (tmp as StorableModel).__getField(field));
     });
   }
 

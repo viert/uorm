@@ -71,7 +71,7 @@ export default class ShardedModel extends AbstractModel {
 
   async reload<T extends ShardedModel>(this: T): Promise<void> {
     if (this.isNew) return;
-    let constructor = <typeof ShardedModel>this.constructor;
+    let constructor = this.constructor as typeof ShardedModel;
 
     let tmp = await constructor.findOne(this.shardId, {
       _id: this._id,
@@ -83,7 +83,7 @@ export default class ShardedModel extends AbstractModel {
 
     this.__fields__.forEach(field => {
       if (field === '_id') return;
-      this.__setField(field, (<ShardedModel>tmp).__getField(field));
+      this.__setField(field, (tmp as ShardedModel).__getField(field));
     });
   }
 
