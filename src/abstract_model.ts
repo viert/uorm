@@ -379,4 +379,11 @@ export default abstract class AbstractModel {
   protected abstract async _save_to_db(): Promise<any>;
   protected abstract async _delete_from_db(): Promise<any>;
   async invalidate() {}
+
+  static fromData<T extends AbstractModel>(
+    this: new (...args: any[]) => T,
+    data: { [key: string]: any }
+  ): T {
+    return new this(data);
+  }
 }

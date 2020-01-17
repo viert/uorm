@@ -36,3 +36,19 @@ export class MissingShardId extends Error {
     super('shard_id is missing from ShardedModel');
   }
 }
+
+export class WrongSubmodel extends Error {
+  name = 'WrongSubmodel';
+}
+
+export class SubmodelError extends Error {
+  name = 'SubmodelError';
+}
+
+export class MissingSubmodel extends Error {
+  name = 'MissingSubmodel';
+}
+
+export class UnknownSubmodel extends Error {
+  name = 'UnknownSubmodel';
+}
