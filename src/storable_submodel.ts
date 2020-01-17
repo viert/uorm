@@ -1,5 +1,5 @@
 import StorableModel from './storable_model';
-import { Field } from './abstract_model';
+import AbstractModel, { Field } from './abstract_model';
 import {
   WrongSubmodel,
   SubmodelError,
@@ -12,7 +12,7 @@ export default class StorableSubmodel extends StorableModel {
 
   static __submodel__: string | null = null;
   static __submodel_loaders: {
-    [key: string]: new <T extends StorableSubmodel>(...args: any[]) => T;
+    [key: string]: new <T extends AbstractModel>(...args: any[]) => T;
   } = {};
 
   get __submodel__() {
@@ -68,8 +68,12 @@ export default class StorableSubmodel extends StorableModel {
 
   static registerSubmodel(
     name: string,
-    ctor: new <T extends StorableSubmodel>(...args: any[]) => T
+    ctor: new <T extends AbstractModel>(...args: any[]) => T
   ) {
+    if (!(ctor instanceof StorableSubmodel)) {
+      throw new SubmodelError(`${ctor.name} is not a submodel constructor`);
+    }
+
     if (!this.__submodel__) {
       throw new SubmodelError(
         'Attempted to register a submodel with another submodel'
@@ -81,7 +85,7 @@ export default class StorableSubmodel extends StorableModel {
     this.__submodel_loaders[name] = ctor;
   }
 
-  static fromData<T extends StorableSubmodel>(data: { [key: string]: any }): T {
+  static fromData<T extends AbstractModel>(data: { [key: string]: any }): T {
     if (!('submodel' in data)) {
       throw new MissingSubmodel(`${this.name} has no submodel in the DB. Bug?`);
     }
@@ -91,6 +95,7 @@ export default class StorableSubmodel extends StorableModel {
         `Submodel ${submodelName} is not registered with ${this.name}`
       );
     }
-    return new this.__submodel_loaders[submodelName](data);
+    const ctor = this.__submodel_loaders[submodelName];
+    return new ctor(data) as T;
   }
 }

@@ -18,7 +18,7 @@ interface DBConfig {
 function createObjectsCursor<T extends AbstractModel>(
   cursor: Cursor,
   shardId: string | null,
-  ModelClass: new (data: Object) => T
+  ctor: (data: { [key: string]: any }) => T
 ) {
   return new Proxy(cursor, {
     get(target, propKey) {
@@ -33,7 +33,7 @@ function createObjectsCursor<T extends AbstractModel>(
               if (shardId) {
                 item['shard_id'] = shardId;
               }
-              let obj: T = new ModelClass(item);
+              let obj: T = ctor(item);
               callback(obj, ...rest);
             });
           };
@@ -43,13 +43,13 @@ function createObjectsCursor<T extends AbstractModel>(
               if (shardId) {
                 item['shard_id'] = shardId;
               }
-              yield new ModelClass(item);
+              yield ctor(item);
             }
           };
         case 'next':
           return async () => {
             let obj = await cursor.next();
-            return new ModelClass(obj);
+            return ctor(obj);
           };
         default:
           return Reflect.get(target, propKey);
@@ -117,13 +117,13 @@ export class DBShard {
   }
 
   getObjs<T extends AbstractModel>(
-    ModelClass: new (...args: any[]) => T,
+    ctor: (...args: any[]) => T,
     collection: string,
     query: { [key: string]: any }
   ): Cursor {
     const coll = this.db.collection(collection);
     const cursor = coll.find(query);
-    return createObjectsCursor(cursor, this.shardId, ModelClass);
+    return createObjectsCursor(cursor, this.shardId, ctor);
   }
 
   async getObjsProjected(
