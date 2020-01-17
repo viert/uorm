@@ -29,7 +29,7 @@ export default class StorableModel extends AbstractModel {
 
   static find(query: { [key: string]: any } = {}): Cursor {
     return this.db.getObjs(
-      this,
+      this.fromData.bind(this),
       this.__collection__,
       this._preprocessQuery(query)
     );
@@ -45,7 +45,7 @@ export default class StorableModel extends AbstractModel {
       this._preprocessQuery(query)
     );
     if (!obj) return null;
-    return new this(obj) as InstanceType<T>;
+    return this.fromData(obj) as InstanceType<T>;
   }
 
   static async get<T extends typeof StorableModel>(
@@ -72,7 +72,7 @@ export default class StorableModel extends AbstractModel {
     if (result === null && raiseNotFound !== null) {
       throw new Error(raiseNotFound);
     }
-    return result as InstanceType<T> | null;
+    return result;
   }
 
   static async destroyAll() {

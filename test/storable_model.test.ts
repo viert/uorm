@@ -1,6 +1,6 @@
 import { StorableModel, Field, db } from '../src';
 import { Cursor } from 'mongodb';
-import { randomString } from './util';
+import { initDatabases } from './util';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -16,18 +16,9 @@ class TestModel extends StorableModel {
   @Field({ defaultValue: callable }) callable_default_field: number;
 }
 
-const randomDatabase = randomString();
-
 describe('storable model', () => {
   beforeAll(async done => {
-    await db.init({
-      meta: {
-        uri: 'mongodb://localhost',
-        dbname: randomDatabase,
-        options: { useUnifiedTopology: true },
-      },
-      shards: {},
-    });
+    await initDatabases();
     done();
   });
 
