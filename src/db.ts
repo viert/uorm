@@ -104,18 +104,6 @@ export class DBShard {
     return this.database;
   }
 
-  // async getObj<T extends StorableModel>(
-  //   ModelClass: new (...args: any[]) => T,
-  //   collection: string,
-  //   query: Object
-  // ): Promise<T | null> {
-  //   const coll = this.db.collection(collection);
-  //   const result = await coll.findOne(query);
-  //   if (result === null) {
-  //     return null;
-  //   }
-  //   return new ModelClass(result);
-  // }
   async getObj(
     collection: string,
     query: { [key: string]: any }
@@ -190,7 +178,7 @@ export class DBShard {
 
 class DB {
   private _meta: DBShard;
-  private _shards: { [key: string]: DBShard };
+  private _shards: { [key: string]: DBShard } = {};
   initialized: boolean = false;
 
   static async create(config: {

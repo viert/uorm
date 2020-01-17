@@ -41,6 +41,11 @@ describe('storable model', () => {
     done();
   });
 
+  it('has a proper collection name', () => {
+    const model = new TestModel({ field2: 'mymodel' });
+    expect(model.__collection__).toEqual('test_model');
+  });
+
   it('once saved let be acquired', async () => {
     const model = new TestModel({ field2: 'mymodel' });
     await model.save();

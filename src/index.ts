@@ -8,11 +8,11 @@ export {
   AbstractModel,
   StorableModel,
   ShardedModel,
-  Field,
-  SaveRequired,
   FieldRequired,
   InvalidFieldType,
   ModelSaveRequired,
   DBShard,
+  Field,
+  SaveRequired,
   db,
 };

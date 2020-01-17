@@ -136,7 +136,7 @@ export default abstract class AbstractModel {
 
   static get __collection__(): string {
     if (!this._coll) {
-      this._coll = snakeCase(this.constructor.name);
+      this._coll = snakeCase(this.name);
     }
     return this._coll;
   }

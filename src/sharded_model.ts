@@ -26,7 +26,9 @@ export default class ShardedModel extends AbstractModel {
   }
 
   static find(shardId: string, query: { [key: string]: any } = {}): Cursor {
-    return db.getShard(shardId).getObjs(this, '', this._preprocessQuery(query));
+    return db
+      .getShard(shardId)
+      .getObjs(this, this.__collection__, this._preprocessQuery(query));
   }
 
   static async findOne<T extends typeof ShardedModel>(
