@@ -51,6 +51,11 @@ function createObjectsCursor<T extends AbstractModel>(
             let obj = await cursor.next();
             return ctor(obj);
           };
+        case 'toArray':
+          return async () => {
+            let objs = await cursor.toArray();
+            return objs.map(ctor);
+          };
         default:
           return Reflect.get(target, propKey);
       }

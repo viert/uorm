@@ -132,13 +132,13 @@ function snakeCase(name: string) {
 
 export default abstract class AbstractModel {
   @Field() _id: ObjectID | null;
-  protected static _coll: string | null = null;
+  protected static _collection: string | null = null;
 
   static get __collection__(): string {
-    if (!this._coll) {
-      this._coll = snakeCase(this.name);
+    if (!this._collection) {
+      this._collection = snakeCase(this.name);
     }
-    return this._coll;
+    return this._collection;
   }
 
   // a hack to make '__collection__' both static and instance property
@@ -352,10 +352,16 @@ export default abstract class AbstractModel {
       // check field type
       let fieldType = fieldTypes[field];
       if (!validateType(value, fieldType)) {
-        let valueType = value.constructor;
-        throw new InvalidFieldType(
-          `field "${field}" value has invalid type ${valueType.name}, ${fieldType.name} expected`
-        );
+        if (value === null && fieldType) {
+          throw new InvalidFieldType(
+            `field "${field}" value has invalid type null, ${fieldType.name} expected`
+          );
+        } else {
+          let valueType = value.constructor;
+          throw new InvalidFieldType(
+            `field "${field}" value has invalid type ${valueType.name}, ${fieldType.name} expected`
+          );
+        }
       }
 
       // autotrim runs before "required" check

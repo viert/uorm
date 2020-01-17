@@ -7,12 +7,16 @@ import {
   UnknownSubmodel,
 } from './errors';
 
+type StorableSubmodelConstructor<T extends StorableSubmodel> = new (
+  ...args: any[]
+) => T;
+
 export default class StorableSubmodel extends StorableModel {
   @Field() submodel: string;
 
   static __submodel__: string | null = null;
   static __submodel_loaders: {
-    [key: string]: new <T extends AbstractModel>(...args: any[]) => T;
+    [key: string]: StorableSubmodelConstructor<StorableSubmodel>;
   } = {};
 
   get __submodel__() {
@@ -66,15 +70,11 @@ export default class StorableSubmodel extends StorableModel {
     };
   }
 
-  static registerSubmodel(
+  static registerSubmodel<T extends StorableSubmodel>(
     name: string,
-    ctor: new <T extends AbstractModel>(...args: any[]) => T
+    ctor: StorableSubmodelConstructor<T>
   ) {
-    if (!(ctor instanceof StorableSubmodel)) {
-      throw new SubmodelError(`${ctor.name} is not a submodel constructor`);
-    }
-
-    if (!this.__submodel__) {
+    if (this.__submodel__) {
       throw new SubmodelError(
         'Attempted to register a submodel with another submodel'
       );
@@ -96,6 +96,6 @@ export default class StorableSubmodel extends StorableModel {
       );
     }
     const ctor = this.__submodel_loaders[submodelName];
-    return new ctor(data) as T;
+    return (new ctor(data) as unknown) as T;
   }
 }

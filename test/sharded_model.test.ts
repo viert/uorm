@@ -1,5 +1,5 @@
 import { db, ShardedModel, Field } from '../src';
-import { randomString } from './util';
+import { initDatabases } from './util';
 import { Cursor } from 'mongodb';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
@@ -18,38 +18,7 @@ class TestModel extends ShardedModel {
 
 describe('sharded model', () => {
   beforeAll(async done => {
-    const uri = 'mongodb://localhost';
-    const options = { useUnifiedTopology: true };
-    await db.init({
-      meta: {
-        uri,
-        options,
-        dbname: randomString(),
-      },
-      shards: {
-        s1: {
-          uri,
-          options,
-          dbname: randomString(),
-        },
-        s2: {
-          uri,
-          options,
-          dbname: randomString(),
-        },
-        s3: {
-          uri,
-          options,
-          dbname: randomString(),
-        },
-        s4: {
-          uri,
-          options,
-          dbname: randomString(),
-        },
-      },
-    });
-
+    await initDatabases();
     done();
   });
 
