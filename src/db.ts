@@ -145,7 +145,7 @@ export class DBShard {
     const coll = this.db.collection(obj.__collection__);
 
     if (obj.isNew) {
-      let data = await obj.toObject(null, true);
+      let data = obj.toObject(null, true);
       delete data['_id'];
 
       const insertedObj = await coll.insertOne(data);

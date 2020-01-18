@@ -316,6 +316,9 @@ export default abstract class AbstractModel {
       }
     }
     let value = Reflect.get(this, key);
+    if (typeof value === 'function') {
+      return undefined;
+    }
     return value;
   }
 
@@ -330,12 +333,34 @@ export default abstract class AbstractModel {
     Reflect.set(this, key, value);
   }
 
-  async toObject(
+  toObject(
+    fields: string[] | null = null,
+    includeRestricted: boolean = false
+  ): { [key: string]: any } {
+    const restricted = this.__restricted_fields__;
+    const modelFields = this.__fields__;
+
+    if (fields === null) {
+      fields = modelFields;
+    }
+
+    let obj: { [key: string]: any } = {};
+    for (const field of fields) {
+      if (includeRestricted || !restricted.includes(field)) {
+        let value = this.__getField(field);
+        if (typeof value !== 'undefined') {
+          obj[field] = value;
+        }
+      }
+    }
+    return obj;
+  }
+
+  async asyncObject(
     fields: string[] | null = null,
     includeRestricted: boolean = false
   ): Promise<{ [key: string]: any }> {
-    let restricted = this.__restricted_fields__;
-
+    const restricted = this.__restricted_fields__;
     const modelFields = this.__fields__;
     const asyncFields = this.__async_fields__;
 
@@ -345,15 +370,14 @@ export default abstract class AbstractModel {
 
     let obj: { [key: string]: any } = {};
     for (const field of fields) {
-      if (modelFields.includes(field)) {
-        if (includeRestricted || !restricted.includes(field)) {
-          let value = this.__getField(field);
-          if (typeof value !== 'undefined') {
-            obj[field] = value;
-          }
+      if (asyncFields.includes(field)) {
+        const getter = Reflect.get(this, field);
+        obj[field] = await getter();
+      } else if (includeRestricted || !restricted.includes(field)) {
+        let value = this.__getField(field);
+        if (typeof value !== 'undefined') {
+          obj[field] = value;
         }
-      } else if (asyncFields.includes(field)) {
-        obj[field] = await this.__getField(field)();
       }
     }
     return obj;
