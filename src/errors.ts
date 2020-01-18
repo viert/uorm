@@ -52,3 +52,7 @@ export class MissingSubmodel extends Error {
 export class UnknownSubmodel extends Error {
   name = 'UnknownSubmodel';
 }
+
+export class TypeError extends Error {
+  name = 'TypeError';
+}

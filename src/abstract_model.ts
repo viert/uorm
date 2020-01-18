@@ -9,6 +9,7 @@ const DEFAULT_VALUES_META_KEY = 'uorm:field_defaults';
 const REJECTED_FIELDS_META_KEY = 'uorm:rejected_fields';
 const RESTRICTED_FIELDS_META_KEY = 'uorm:restricted_fields';
 const AUTO_TRIM_FIELDS_META_KEY = 'uorm:auto_trim_fields';
+const ASYNC_FIELDS_META_KEY = 'uorm:async_fields';
 
 function validateType(value: any, type: any): boolean {
   return (
@@ -95,6 +96,34 @@ export function Field(
         specFields = [...specFields, propertyName];
       }
       Reflect.defineMetadata(option.key, specFields, target);
+    }
+  };
+}
+
+export function AsyncField() {
+  return function __decorate(
+    target: any,
+    propertyName: string,
+    descriptor: PropertyDescriptor
+  ) {
+    if (
+      descriptor &&
+      descriptor.value &&
+      descriptor.value.constructor &&
+      descriptor.value.constructor.name === 'AsyncFunction'
+    ) {
+      let fields: string[] = [];
+      if (Reflect.hasMetadata(ASYNC_FIELDS_META_KEY, target)) {
+        fields = [
+          ...Reflect.getMetadata(ASYNC_FIELDS_META_KEY, target),
+          propertyName,
+        ];
+      } else {
+        fields = [propertyName];
+      }
+      Reflect.defineMetadata(ASYNC_FIELDS_META_KEY, fields, target);
+    } else {
+      throw new TypeError(`${propertyName} is not an async method`);
     }
   };
 }
@@ -190,6 +219,10 @@ export default abstract class AbstractModel {
     return Reflect.getMetadata(FIELDS_META_KEY, this);
   }
 
+  protected get __async_fields__(): string[] {
+    return Reflect.getMetadata(ASYNC_FIELDS_META_KEY, this) || [];
+  }
+
   protected get __field_types__(): { [key: string]: any } {
     return Reflect.getMetadata(FIELD_TYPES_META_KEY, this);
   }
@@ -283,9 +316,6 @@ export default abstract class AbstractModel {
       }
     }
     let value = Reflect.get(this, key);
-    if (typeof value === 'function') {
-      return undefined;
-    }
     return value;
   }
 
@@ -300,29 +330,37 @@ export default abstract class AbstractModel {
     Reflect.set(this, key, value);
   }
 
-  toObject(
+  async toObject(
     fields: string[] | null = null,
     includeRestricted: boolean = false
-  ): { [key: string]: any } {
+  ): Promise<{ [key: string]: any }> {
     let restricted = this.__restricted_fields__;
 
+    const modelFields = this.__fields__;
+    const asyncFields = this.__async_fields__;
+
     if (fields === null) {
-      fields = this.__fields__;
+      fields = modelFields;
     }
 
-    return fields.reduce((acc: { [key: string]: any }, field: string) => {
-      if (includeRestricted || !restricted.includes(field)) {
-        let value = this.__getField(field);
-        if (typeof value !== 'undefined') {
-          acc[field] = value;
+    let obj: { [key: string]: any } = {};
+    for (const field of fields) {
+      if (modelFields.includes(field)) {
+        if (includeRestricted || !restricted.includes(field)) {
+          let value = this.__getField(field);
+          if (typeof value !== 'undefined') {
+            obj[field] = value;
+          }
         }
+      } else if (asyncFields.includes(field)) {
+        obj[field] = await this.__getField(field)();
       }
-      return acc;
-    }, {});
+    }
+    return obj;
   }
 
-  toString(): string {
-    let data = this.toObject(null, true);
+  async asString(): Promise<string> {
+    let data = await this.toObject(null, true);
     let result = `<${this.constructor.name}`;
     for (let field of this.__fields__) {
       result += ` ${field}=${data[field]}`;
