@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -26,6 +26,7 @@
     "trailingComma": "es5"
   },
   "name": "uorm",
+  "description": "Typescript port of python uengine ORM library",
   "author": {
     "name": "Pavel Vorobyov",
     "email": "aquavitale@yandex.ru",
