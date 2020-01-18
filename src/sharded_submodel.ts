@@ -1,5 +1,6 @@
 import ShardedModel from './sharded_model';
 import AbstractModel, { Field } from './abstract_model';
+import { Constructor } from './util';
 import {
   WrongSubmodel,
   SubmodelError,
@@ -7,16 +8,12 @@ import {
   UnknownSubmodel,
 } from './errors';
 
-type ShardedSubmodelConstructor<T extends ShardedSubmodel> = new (
-  ...args: any[]
-) => T;
-
 export default class ShardedSubmodel extends ShardedModel {
   @Field() submodel: string;
 
   static __submodel__: string | null = null;
   static __submodel_loaders: {
-    [key: string]: ShardedSubmodelConstructor<ShardedSubmodel>;
+    [key: string]: Constructor<ShardedSubmodel>;
   } = {};
 
   get __submodel__() {
@@ -72,7 +69,7 @@ export default class ShardedSubmodel extends ShardedModel {
 
   static registerSubmodel<T extends ShardedSubmodel>(
     name: string,
-    ctor: ShardedSubmodelConstructor<T>
+    ctor: Constructor<T>
   ) {
     if (this.__submodel__) {
       throw new SubmodelError(

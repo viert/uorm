@@ -26,7 +26,15 @@
     "trailingComma": "es5"
   },
   "name": "uorm",
-  "author": "Pavel Vorobyov",
+  "author": {
+    "name": "Pavel Vorobyov",
+    "email": "aquavitale@yandex.ru",
+    "url": "https://github.com/viert"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/viert/uorm"
+  },
   "module": "dist/uorm.esm.js",
   "devDependencies": {
     "@types/jest": "^24.0.25",

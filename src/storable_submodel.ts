@@ -1,5 +1,6 @@
 import StorableModel from './storable_model';
 import AbstractModel, { Field } from './abstract_model';
+import { Constructor } from './util';
 import {
   WrongSubmodel,
   SubmodelError,
@@ -7,16 +8,12 @@ import {
   UnknownSubmodel,
 } from './errors';
 
-type StorableSubmodelConstructor<T extends StorableSubmodel> = new (
-  ...args: any[]
-) => T;
-
 export default class StorableSubmodel extends StorableModel {
   @Field() submodel: string;
 
   static __submodel__: string | null = null;
   static __submodel_loaders: {
-    [key: string]: StorableSubmodelConstructor<StorableSubmodel>;
+    [key: string]: Constructor<StorableSubmodel>;
   } = {};
 
   get __submodel__() {
@@ -72,7 +69,7 @@ export default class StorableSubmodel extends StorableModel {
 
   static registerSubmodel<T extends StorableSubmodel>(
     name: string,
-    ctor: StorableSubmodelConstructor<T>
+    ctor: Constructor<T>
   ) {
     if (this.__submodel__) {
       throw new SubmodelError(
