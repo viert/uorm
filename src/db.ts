@@ -9,7 +9,7 @@ import {
 import AbstractModel from './abstract_model';
 import { InvalidShardId } from './errors';
 
-interface DBConfig {
+export interface DBConfig {
   uri: string;
   options?: Object;
   dbname: string;

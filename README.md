@@ -1,27 +1,60 @@
-# TSDX Bootstrap
+# uORM
 
-This project was bootstrapped with [TSDX](https://github.com/jaredpalmer/tsdx).
+This is a port of python [uEngine](https://github.com/viert/uengine) MongoDB ORM library
 
-## Local Development
+## Usage
 
-Below is a list of commands you will probably find useful.
+Declare models:
 
-### `npm start` or `yarn start`
+```typescript
+import { StorableModel, Field } from 'uorm';
 
-Runs the project in development/watch mode. Your project will be rebuilt upon changes. TSDX has a special logger for you convenience. Error messages are pretty printed and formatted for compatibility VS Code's Problems tab.
+class User extends StorableModel {
+  _collection = 'user';
 
-<img src="https://user-images.githubusercontent.com/4060187/52168303-574d3a00-26f6-11e9-9f3b-71dbec9ebfcb.gif" width="600" />
+  @Field({ required: true }) username: string;
+  @Field() first_name: string;
+  @Field() last_name: string;
+  @Field({ defaultValue: Date }) created_at: Date;
+  @Field() description: string;
 
-Your library will be rebuilt if you make edits.
+  get fullname() {
+    return `${this.first_name} ${this.last_name}`;
+  }
+}
+```
 
-### `npm run build` or `yarn build`
+Initialize database connections
 
-Bundles the package to the `dist` folder.
-The package is optimized and bundled with Rollup into multiple formats (CommonJS, UMD, and ES Module).
+```typescript
+import { db, DBConfig } from 'uorm';
 
-<img src="https://user-images.githubusercontent.com/4060187/52168322-a98e5b00-26f6-11e9-8cf6-222d716b75ef.gif" width="600" />
+const conf: DBConfig = {
+  meta: {
+    uri: 'mongodb://localhost',
+    dbname: 'mydb',
+    options: { useUnifiedTopology: true },
+  },
+  shards: {},
+};
 
-### `npm test` or `yarn test`
+async function main() {
+  await db.init(conf);
+}
+```
 
-Runs the test watcher (Jest) in an interactive mode.
-By default, runs tests related to files changed since the last commit.
+Use models for CRUD operations:
+
+```typescript
+let user = await User.findOne({username: 'johndoe'})
+console.log(user);
+user.first_name = 'Jim'
+await user.save();
+
+const cursor = User.find({first_name: 'John'})
+for await (user in cursor) {
+  console.log(user);
+}
+
+await User.destroyAll()
+```
