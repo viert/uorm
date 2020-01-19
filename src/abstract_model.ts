@@ -77,7 +77,9 @@ export default abstract class AbstractModel {
       if (field in data) {
         // explicit assignment
         calculatedValue = data[field];
-      } else if (field in defaults) {
+      }
+
+      if (calculatedValue == null && field in defaults) {
         // default values if no explicit value
         let defaultValue = defaults[field];
         if (defaultValue instanceof Array) {
