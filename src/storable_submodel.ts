@@ -17,13 +17,17 @@ export default class StorableSubmodel extends StorableModel {
     [key: string]: Constructor<StorableSubmodel>;
   } = {};
 
-  get __submodel__() {
-    return (this.constructor as typeof StorableSubmodel).__submodel__;
+  __submodel__(): string {
+    const submodel = (this.constructor as typeof StorableSubmodel).__submodel__;
+    if (submodel === null) {
+      throw new SubmodelError('submodel is not defined, this might be a bug');
+    }
+    return submodel;
   }
 
   constructor(data: { [key: string]: any } = {}) {
     super(data);
-    if (this.isNew) {
+    if (this.isNew()) {
       if (!this.__submodel__) {
         throw new SubmodelError(
           `Attempted to create an object of abstract model ${this.constructor.name}`
@@ -34,7 +38,7 @@ export default class StorableSubmodel extends StorableModel {
           'Attempt to override submodel for a new object'
         );
       }
-      this.submodel = this.__submodel__;
+      this.submodel = this.__submodel__();
     } else {
       if (!this.submodel) {
         throw new MissingSubmodel(
@@ -46,7 +50,7 @@ export default class StorableSubmodel extends StorableModel {
   }
 
   _checkSubmodel() {
-    if (this.submodel !== this.__submodel__) {
+    if (this.submodel !== this.__submodel__()) {
       throw new WrongSubmodel(
         `Attempted to load ${this.submodel} as ${this.constructor.name}. Correct submodel would be ${this.__submodel__}. Bug?`
       );

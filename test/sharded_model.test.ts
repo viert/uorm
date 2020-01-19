@@ -23,15 +23,15 @@ describe('sharded model', () => {
   });
 
   afterAll(async done => {
-    await db.meta.db.dropDatabase();
-    for (const shardId in db.shards) {
+    await db.meta().db.dropDatabase();
+    for (const shardId in db.shards()) {
       await db.getShard(shardId).db.dropDatabase();
     }
     done();
   });
 
   beforeEach(async done => {
-    for (const shardId in db.shards) {
+    for (const shardId in db.shards()) {
       await TestModel.destroyAll(shardId);
     }
     done();
@@ -39,7 +39,7 @@ describe('sharded model', () => {
 
   it('has a proper collection', () => {
     let model1 = new TestModel('s1', { field1: 'value1', field2: 'value2' });
-    expect(model1.__collection__).toEqual('test_model');
+    expect(model1.__collection__()).toEqual('test_model');
   });
 
   it('saves to proper shard', async () => {
@@ -135,26 +135,27 @@ describe('sharded model', () => {
   });
 
   it('find() returns a proper cursor', async () => {
-    let model1: TestModel | null = new TestModel('s1', {
+    let cursor = TestModel.find('s1');
+    let model1 = new TestModel('s1', {
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model1.save();
 
-    let model2: TestModel | null = new TestModel('s1', {
+    let model2 = new TestModel('s1', {
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
 
     await model2.save();
-    let model3: TestModel | null = new TestModel('s1', {
+    let model3 = new TestModel('s1', {
       field1: 'do_not_modify',
       field2: 'mymodel_update_test',
     });
 
     await model3.save();
 
-    let cursor = TestModel.find('s1');
+    cursor = TestModel.find('s1');
     expect(cursor).toBeInstanceOf(Cursor);
     expect(await cursor.count()).toEqual(3);
 

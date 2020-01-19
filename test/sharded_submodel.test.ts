@@ -42,8 +42,8 @@ describe('storable submodel', () => {
   });
 
   afterAll(async done => {
-    await db.meta.db.dropDatabase();
-    for (const shardId in db.shards) {
+    await db.meta().db.dropDatabase();
+    for (const shardId in db.shards()) {
       await db.getShard(shardId).db.dropDatabase();
     }
     done();
@@ -88,8 +88,10 @@ describe('storable submodel', () => {
   });
 
   it('follows inheritance', () => {
-    expect(TestBaseSubmodel.__collection__).toEqual(Submodel1.__collection__);
-    expect(Submodel1_1.__collection__).toEqual(Submodel1.__collection__);
+    expect(TestBaseSubmodel.__collection__()).toEqual(
+      Submodel1.__collection__()
+    );
+    expect(Submodel1_1.__collection__()).toEqual(Submodel1.__collection__());
     expect(Submodel1_1.__submodel__).toEqual(Submodel1.__submodel__);
   });
 

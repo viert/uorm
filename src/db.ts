@@ -142,9 +142,9 @@ export class DBShard {
   }
 
   async saveObj<T extends AbstractModel>(obj: T): Promise<void> {
-    const coll = this.db.collection(obj.__collection__);
+    const coll = this.db.collection(obj.__collection__());
 
-    if (obj.isNew) {
+    if (obj.isNew()) {
       let data = obj.toObject(null, true);
       delete data['_id'];
 
@@ -158,8 +158,8 @@ export class DBShard {
   }
 
   async deleteObj<T extends AbstractModel>(obj: T): Promise<void> {
-    if (obj.isNew) return;
-    const coll = this.db.collection(obj.__collection__);
+    if (obj.isNew()) return;
+    const coll = this.db.collection(obj.__collection__());
     await coll.deleteOne({ _id: obj._id });
   }
 
@@ -220,14 +220,14 @@ class DB {
     throw new InvalidShardId(shardId);
   }
 
-  get meta(): DBShard {
+  meta(): DBShard {
     if (!this.initialized) {
       throw new Error('DB is not initialized');
     }
     return this._meta;
   }
 
-  get shards(): { [key: string]: DBShard } {
+  shards(): { [key: string]: DBShard } {
     if (!this.initialized) {
       throw new Error('DB is not initialized');
     }

@@ -43,7 +43,7 @@ export default abstract class AbstractModel {
   @Field() _id: ObjectID | null;
   protected static _collection: string | null = null;
 
-  static get __collection__(): string {
+  static __collection__(): string {
     if (!this._collection) {
       this._collection = snakeCase(this.name);
     }
@@ -51,8 +51,8 @@ export default abstract class AbstractModel {
   }
 
   // a hack to make '__collection__' both static and instance property
-  get __collection__(): string {
-    return (this.constructor as typeof AbstractModel).__collection__;
+  __collection__(): string {
+    return (this.constructor as typeof AbstractModel).__collection__();
   }
 
   protected static _preprocessQuery(query: {
@@ -68,8 +68,8 @@ export default abstract class AbstractModel {
   }
 
   constructor(data: { [key: string]: any } = {}) {
-    let fields = this.__fields__;
-    let defaults = this.__defaults__;
+    let fields = this.__fields__();
+    let defaults = this.__defaults__();
 
     for (const field of fields) {
       let calculatedValue: any;
@@ -95,54 +95,54 @@ export default abstract class AbstractModel {
     }
   }
 
-  protected get __fields__(): string[] {
+  protected __fields__(): string[] {
     return Reflect.getMetadata(FIELDS_META_KEY, this);
   }
 
-  protected get __field_types__(): { [key: string]: any } {
+  protected __field_types__(): { [key: string]: any } {
     return Reflect.getMetadata(FIELD_TYPES_META_KEY, this);
   }
 
-  protected get __defaults__(): { [key: string]: any } {
+  protected __defaults__(): { [key: string]: any } {
     return Reflect.getMetadata(DEFAULT_VALUES_META_KEY, this) || {};
   }
 
-  protected get __required_fields__(): string[] {
+  protected __required_fields__(): string[] {
     return Reflect.getMetadata(REQUIRED_FIELDS_META_KEY, this) || [];
   }
 
-  protected get __rejected_fields__(): string[] {
+  protected __rejected_fields__(): string[] {
     return Reflect.getMetadata(REJECTED_FIELDS_META_KEY, this) || [];
   }
 
-  protected get __restricted_fields__(): string[] {
+  protected __restricted_fields__(): string[] {
     return Reflect.getMetadata(RESTRICTED_FIELDS_META_KEY, this) || [];
   }
 
-  protected get __auto_trim_fields__(): string[] {
+  protected __auto_trim_fields__(): string[] {
     return Reflect.getMetadata(AUTO_TRIM_FIELDS_META_KEY, this) || [];
   }
 
-  protected get __async_computed__(): string[] {
+  protected __async_computed__(): string[] {
     return Reflect.getMetadata(ASYNC_COMPUTED_PROPERTIES_META_KEY, this) || [];
   }
 
   static __key_field__: string | null = null;
   static __indexes__: Array<string | Array<any>> = [];
 
-  get isNew(): boolean {
+  isNew(): boolean {
     return this._id === null;
   }
 
   async save(skipCallback: boolean = true): Promise<void> {
-    const isNew = this.isNew;
+    const isNew = this.isNew();
 
     if (!skipCallback) {
       await this._before_validation();
     }
     this._validate();
 
-    this.__auto_trim_fields__.forEach((field: string) => {
+    this.__auto_trim_fields__().forEach((field: string) => {
       let value = this.__getField(field);
       if (value && value.hasOwnProperty('trim')) {
         this.__setField(field, value.trim());
@@ -162,8 +162,8 @@ export default abstract class AbstractModel {
     data: { [key: string]: any },
     skipCallback: boolean = false
   ): Promise<void> {
-    const rejected = this.__rejected_fields__;
-    for (const field of this.__fields__) {
+    const rejected = this.__rejected_fields__();
+    for (const field of this.__fields__()) {
       if (field in data && !rejected.includes(field) && field !== '_id') {
         this.__setField(field, data[field]);
       }
@@ -172,7 +172,7 @@ export default abstract class AbstractModel {
   }
 
   async destroy(skipCallback: boolean = false): Promise<void> {
-    if (this.isNew) {
+    if (this.isNew()) {
       return;
     }
 
@@ -196,7 +196,7 @@ export default abstract class AbstractModel {
       }
     }
 
-    const asyncComputed = this.__async_computed__;
+    const asyncComputed = this.__async_computed__();
     let value = Reflect.get(this, key);
     if (typeof value === 'function' && !asyncComputed.includes(key)) {
       return undefined;
@@ -219,8 +219,8 @@ export default abstract class AbstractModel {
     fields: string[] | null = null,
     includeRestricted: boolean = false
   ): { [key: string]: any } {
-    const restricted = this.__restricted_fields__;
-    const modelFields = this.__fields__;
+    const restricted = this.__restricted_fields__();
+    const modelFields = this.__fields__();
 
     if (fields === null) {
       fields = modelFields;
@@ -243,9 +243,9 @@ export default abstract class AbstractModel {
     fields: string[] | null = null,
     includeRestricted: boolean = false
   ): Promise<{ [key: string]: any }> {
-    const restricted = this.__restricted_fields__;
-    const modelFields = this.__fields__;
-    const asyncComputedFields = this.__async_computed__;
+    const restricted = this.__restricted_fields__();
+    const modelFields = this.__fields__();
+    const asyncComputedFields = this.__async_computed__();
 
     if (fields === null) {
       fields = modelFields;
@@ -283,13 +283,13 @@ export default abstract class AbstractModel {
   toString(): string {
     let data = this.toObject(null, true);
     let result = `<${this.constructor.name}`;
-    for (let field of this.__fields__) {
+    for (let field of this.__fields__()) {
       result += ` ${field}=${data[field]}`;
     }
     return result + '>';
   }
 
-  get isValid(): boolean {
+  isValid(): boolean {
     try {
       this._validate();
     } catch (_) {
@@ -299,10 +299,10 @@ export default abstract class AbstractModel {
   }
 
   protected _validate() {
-    let fields = this.__fields__;
-    let fieldTypes = this.__field_types__;
-    let requiredFields = this.__required_fields__;
-    let autoTrimFields = this.__auto_trim_fields__;
+    let fields = this.__fields__();
+    let fieldTypes = this.__field_types__();
+    let requiredFields = this.__required_fields__();
+    let autoTrimFields = this.__auto_trim_fields__();
 
     for (let field of fields) {
       if (field === '_id') continue;
