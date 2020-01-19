@@ -1,15 +1,17 @@
 import 'reflect-metadata';
 import { ObjectID } from 'bson';
-import { InvalidFieldType, FieldRequired, ModelSaveRequired } from './errors';
-
-const FIELDS_META_KEY = 'uorm:fields';
-const FIELD_TYPES_META_KEY = 'uorm:field_types';
-const REQUIRED_FIELDS_META_KEY = 'uorm:required_fields';
-const DEFAULT_VALUES_META_KEY = 'uorm:field_defaults';
-const REJECTED_FIELDS_META_KEY = 'uorm:rejected_fields';
-const RESTRICTED_FIELDS_META_KEY = 'uorm:restricted_fields';
-const AUTO_TRIM_FIELDS_META_KEY = 'uorm:auto_trim_fields';
-const ASYNC_FIELDS_META_KEY = 'uorm:async_fields';
+import { InvalidFieldType, FieldRequired } from './errors';
+import {
+  Field,
+  FIELDS_META_KEY,
+  FIELD_TYPES_META_KEY,
+  REJECTED_FIELDS_META_KEY,
+  RESTRICTED_FIELDS_META_KEY,
+  AUTO_TRIM_FIELDS_META_KEY,
+  DEFAULT_VALUES_META_KEY,
+  REQUIRED_FIELDS_META_KEY,
+  ASYNC_COMPUTED_PROPERTIES_META_KEY,
+} from './decorators';
 
 function validateType(value: any, type: any): boolean {
   return (
@@ -18,128 +20,6 @@ function validateType(value: any, type: any): boolean {
     (typeof value === 'number' && type.name === 'Number') ||
     (typeof value === 'boolean' && type.name === 'Boolean')
   );
-}
-
-/**
- * Field decorates a StorableModel property to make it a storable field
- * @param config
- *    optional parameter containing field settings like
- *    - required
- *    - rejected
- *    - restricted
- *    - autoTrim
- *    - defaultValue
- *
- */
-export function Field(
-  config: {
-    required?: boolean;
-    rejected?: boolean;
-    restricted?: boolean;
-    autoTrim?: boolean;
-    defaultValue?: any;
-  } = {}
-): (target: any, propertyName: string) => void {
-  const {
-    defaultValue = null,
-    autoTrim = true,
-    rejected = false,
-    restricted = false,
-    required = false,
-  } = config;
-
-  return function __decorate(target: any, propertyName: string) {
-    const fieldType = Reflect.getMetadata('design:type', target, propertyName);
-
-    let ormFields = [propertyName];
-    if (Reflect.hasMetadata(FIELDS_META_KEY, target)) {
-      ormFields = [
-        ...Reflect.getMetadata(FIELDS_META_KEY, target),
-        ...ormFields,
-      ];
-    }
-    Reflect.defineMetadata(FIELDS_META_KEY, ormFields, target);
-
-    let ormFieldTypes = {
-      [propertyName]: fieldType,
-    };
-    if (Reflect.hasMetadata(FIELD_TYPES_META_KEY, target)) {
-      ormFieldTypes = {
-        ...Reflect.getMetadata(FIELD_TYPES_META_KEY, target),
-        ...ormFieldTypes,
-      };
-    }
-    Reflect.defineMetadata(FIELD_TYPES_META_KEY, ormFieldTypes, target);
-
-    let ormDefaultValues: { [key: string]: any } = {};
-    if (Reflect.hasMetadata(DEFAULT_VALUES_META_KEY, target)) {
-      ormDefaultValues = Reflect.getMetadata(DEFAULT_VALUES_META_KEY, target);
-    }
-
-    if (defaultValue) {
-      ormDefaultValues[propertyName] = defaultValue;
-    }
-    Reflect.defineMetadata(DEFAULT_VALUES_META_KEY, ormDefaultValues, target);
-
-    const settings: Array<{ value: boolean; key: string }> = [
-      { value: required, key: REQUIRED_FIELDS_META_KEY },
-      { value: restricted, key: RESTRICTED_FIELDS_META_KEY },
-      { value: rejected, key: REJECTED_FIELDS_META_KEY },
-      { value: autoTrim, key: AUTO_TRIM_FIELDS_META_KEY },
-    ];
-
-    for (let option of settings) {
-      let specFields: Array<string> = [];
-      if (Reflect.hasMetadata(option.key, target))
-        specFields = Reflect.getMetadata(option.key, target);
-      if (option.value) {
-        specFields = [...specFields, propertyName];
-      }
-      Reflect.defineMetadata(option.key, specFields, target);
-    }
-  };
-}
-
-export function AsyncField() {
-  return function __decorate(
-    target: any,
-    propertyName: string,
-    descriptor: PropertyDescriptor
-  ) {
-    if (
-      descriptor &&
-      descriptor.value &&
-      descriptor.value.constructor &&
-      descriptor.value.constructor.name === 'AsyncFunction'
-    ) {
-      let fields: string[] = [];
-      if (Reflect.hasMetadata(ASYNC_FIELDS_META_KEY, target)) {
-        fields = [
-          ...Reflect.getMetadata(ASYNC_FIELDS_META_KEY, target),
-          propertyName,
-        ];
-      } else {
-        fields = [propertyName];
-      }
-      Reflect.defineMetadata(ASYNC_FIELDS_META_KEY, fields, target);
-    } else {
-      throw new TypeError(`${propertyName} is not an async method`);
-    }
-  };
-}
-
-export function SaveRequired<T extends AbstractModel>(
-  _target: T,
-  _propertyName: string,
-  descriptor: PropertyDescriptor
-) {
-  const original = descriptor.value;
-  descriptor.value = function(...args: any[]) {
-    if ((this as T).isNew) {
-      throw new ModelSaveRequired();
-    }
-    return original.apply(this, args);
-  };
 }
 
 function snakeCase(name: string) {
@@ -219,32 +99,32 @@ export default abstract class AbstractModel {
     return Reflect.getMetadata(FIELDS_META_KEY, this);
   }
 
-  protected get __async_fields__(): string[] {
-    return Reflect.getMetadata(ASYNC_FIELDS_META_KEY, this) || [];
-  }
-
   protected get __field_types__(): { [key: string]: any } {
     return Reflect.getMetadata(FIELD_TYPES_META_KEY, this);
   }
 
   protected get __defaults__(): { [key: string]: any } {
-    return Reflect.getMetadata(DEFAULT_VALUES_META_KEY, this);
+    return Reflect.getMetadata(DEFAULT_VALUES_META_KEY, this) || {};
   }
 
   protected get __required_fields__(): string[] {
-    return Reflect.getMetadata(REQUIRED_FIELDS_META_KEY, this);
+    return Reflect.getMetadata(REQUIRED_FIELDS_META_KEY, this) || [];
   }
 
   protected get __rejected_fields__(): string[] {
-    return Reflect.getMetadata(REJECTED_FIELDS_META_KEY, this);
+    return Reflect.getMetadata(REJECTED_FIELDS_META_KEY, this) || [];
   }
 
   protected get __restricted_fields__(): string[] {
-    return Reflect.getMetadata(RESTRICTED_FIELDS_META_KEY, this);
+    return Reflect.getMetadata(RESTRICTED_FIELDS_META_KEY, this) || [];
   }
 
   protected get __auto_trim_fields__(): string[] {
-    return Reflect.getMetadata(AUTO_TRIM_FIELDS_META_KEY, this);
+    return Reflect.getMetadata(AUTO_TRIM_FIELDS_META_KEY, this) || [];
+  }
+
+  protected get __async_computed__(): string[] {
+    return Reflect.getMetadata(ASYNC_COMPUTED_PROPERTIES_META_KEY, this) || [];
   }
 
   static __key_field__: string | null = null;
@@ -315,8 +195,10 @@ export default abstract class AbstractModel {
         );
       }
     }
+
+    const asyncComputed = this.__async_computed__;
     let value = Reflect.get(this, key);
-    if (typeof value === 'function') {
+    if (typeof value === 'function' && !asyncComputed.includes(key)) {
       return undefined;
     }
     return value;
@@ -347,8 +229,9 @@ export default abstract class AbstractModel {
     let obj: { [key: string]: any } = {};
     for (const field of fields) {
       if (includeRestricted || !restricted.includes(field)) {
-        let value = this.__getField(field);
-        if (typeof value !== 'undefined') {
+        const value = this.__getField(field);
+        const valueType = typeof value;
+        if (valueType !== 'undefined' && valueType !== 'function') {
           obj[field] = value;
         }
       }
@@ -362,17 +245,22 @@ export default abstract class AbstractModel {
   ): Promise<{ [key: string]: any }> {
     const restricted = this.__restricted_fields__;
     const modelFields = this.__fields__;
-    const asyncFields = this.__async_fields__;
+    const asyncComputedFields = this.__async_computed__;
 
     if (fields === null) {
       fields = modelFields;
     }
 
     let obj: { [key: string]: any } = {};
+    let afields: string[] = [];
+    let agetters: Promise<any>[] = [];
+
     for (const field of fields) {
-      if (asyncFields.includes(field)) {
-        const getter = Reflect.get(this, field);
-        obj[field] = await getter();
+      if (asyncComputedFields.includes(field)) {
+        const getter = this.__getField(field).bind(this);
+        // Run async getter, fetch later with await Promise.all
+        afields.push(field);
+        agetters.push(getter());
       } else if (includeRestricted || !restricted.includes(field)) {
         let value = this.__getField(field);
         if (typeof value !== 'undefined') {
@@ -380,11 +268,20 @@ export default abstract class AbstractModel {
         }
       }
     }
+
+    // load async values
+    if (agetters.length) {
+      const values = await Promise.all(agetters);
+      for (let i = 0; i < afields.length; i++) {
+        obj[afields[i]] = values[i];
+      }
+    }
+
     return obj;
   }
 
-  async asString(): Promise<string> {
-    let data = await this.toObject(null, true);
+  toString(): string {
+    let data = this.toObject(null, true);
     let result = `<${this.constructor.name}`;
     for (let field of this.__fields__) {
       result += ` ${field}=${data[field]}`;

@@ -1,4 +1,10 @@
-import { AbstractModel, Field, SaveRequired, InvalidFieldType } from '../src';
+import {
+  AbstractModel,
+  Field,
+  SaveRequired,
+  InvalidFieldType,
+  AsyncComputed,
+} from '../src';
 import { ObjectID } from 'bson';
 
 function callable(): number {
@@ -20,6 +26,11 @@ class TestModel extends AbstractModel {
   @SaveRequired
   getField1() {
     return this.field1;
+  }
+
+  @AsyncComputed()
+  async concatAll() {
+    return this.field1 + this.field2 + this.field3;
   }
 }
 
@@ -107,5 +118,26 @@ describe('abstract model', () => {
       actualError = e;
     }
     expect(actualError).toBeInstanceOf(InvalidFieldType);
+  });
+
+  it('async computed properties calculate properly', async () => {
+    let model = new TestModel({
+      field1: 'value1',
+      field2: 'value2',
+      field3: 'value3',
+    });
+    let obj = await model.asyncObject([
+      'field1',
+      'field2',
+      'field3',
+      'concatAll',
+    ]);
+    expect(obj['field1']).toEqual('value1');
+    expect(obj['field2']).toBeUndefined(); // restricted
+    expect(obj['field3']).toEqual('value3');
+    expect(obj['concatAll']).toEqual('value1value2value3'); // computed;
+    obj = await model.asyncObject(['field2', 'concatAll'], true);
+    expect(obj['concatAll']).toEqual('value1value2value3'); // computed;
+    expect(obj['field2']).toEqual('value2'); // restricted but allowed
   });
 });
