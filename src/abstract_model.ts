@@ -72,14 +72,14 @@ export default abstract class AbstractModel {
     let defaults = this.__defaults__();
 
     for (const field of fields) {
-      let calculatedValue: any;
+      let calculatedValue: any = null;
 
       if (field in data) {
         // explicit assignment
         calculatedValue = data[field];
       }
 
-      if (calculatedValue == null && field in defaults) {
+      if (calculatedValue === null && field in defaults) {
         // default values if no explicit value
         let defaultValue = defaults[field];
         if (defaultValue instanceof Array) {
@@ -89,9 +89,6 @@ export default abstract class AbstractModel {
         } else {
           calculatedValue = defaultValue;
         }
-      } else {
-        // null for all other fields
-        calculatedValue = null;
       }
       Reflect.set(this, field, calculatedValue);
     }

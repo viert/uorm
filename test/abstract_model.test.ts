@@ -66,6 +66,14 @@ describe('abstract model', () => {
     expect(model.field3).toEqual(4);
   });
 
+  it('defaults cover explicitly nulled values', () => {
+    let model = new TestModel({
+      field1: 'value1',
+      field3: null,
+    });
+    expect(model.field3).toEqual(4);
+  });
+
   it('type validation works', () => {
     let model = new TestModel({
       field1: 'value1',
