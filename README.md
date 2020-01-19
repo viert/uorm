@@ -104,3 +104,5 @@ class Token extends StorableModel {
   }
 }
 ```
+
+Notice that calling asyncObject without arguments (like in the example above) is quite a useless thing: by default `fields` list equals to everything declared with `Field` decorator, i.e. there's nothing async there by default, thus, syncronous `toObject()` would suffice.
