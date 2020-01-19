@@ -1,6 +1,7 @@
 import StorableModel from './storable_model';
-import AbstractModel, { Field } from './abstract_model';
+import AbstractModel from './abstract_model';
 import { Constructor } from './util';
+import { Field } from './decorators';
 import {
   WrongSubmodel,
   SubmodelError,

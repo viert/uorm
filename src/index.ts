@@ -1,4 +1,5 @@
-import AbstractModel, { Field, SaveRequired } from './abstract_model';
+import { Field, AsyncComputed, SaveRequired } from './decorators';
+import AbstractModel from './abstract_model';
 import StorableModel from './storable_model';
 import ShardedModel from './sharded_model';
 import StorableSubmodel from './storable_submodel';
@@ -18,6 +19,7 @@ export {
   DBShard,
   DBConfig,
   Field,
+  AsyncComputed,
   SaveRequired,
   db,
 };
