@@ -28,7 +28,16 @@ describe('storable model', () => {
   });
 
   afterAll(async done => {
-    await db.meta().db.dropDatabase();
+    await db
+      .meta()
+      .db()
+      .dropDatabase();
+    for (const shardId in db.shards()) {
+      await db
+        .getShard(shardId)
+        .db()
+        .dropDatabase();
+    }
     done();
   });
 

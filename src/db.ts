@@ -104,7 +104,7 @@ export class DBShard {
     return shard;
   }
 
-  get db() {
+  db() {
     if (this.database === null) throw new Error('not initialized');
     return this.database;
   }
@@ -113,7 +113,7 @@ export class DBShard {
     collection: string,
     query: { [key: string]: any }
   ): Promise<{ [key: string]: any } | null> {
-    const coll = this.db.collection(collection);
+    const coll = this.db().collection(collection);
     const obj = await coll.findOne(query);
     if (obj === null) {
       return null;
@@ -126,7 +126,7 @@ export class DBShard {
     collection: string,
     query: { [key: string]: any }
   ): Cursor {
-    const coll = this.db.collection(collection);
+    const coll = this.db().collection(collection);
     const cursor = coll.find(query);
     return createObjectsCursor(cursor, this.shardId, ctor);
   }
@@ -136,13 +136,13 @@ export class DBShard {
     query: { [key: string]: any },
     projection: { [key: string]: boolean }
   ): Promise<Cursor> {
-    const coll = this.db.collection(collection);
+    const coll = this.db().collection(collection);
     const cursor = coll.find(query).project(projection);
     return cursor;
   }
 
   async saveObj<T extends AbstractModel>(obj: T): Promise<void> {
-    const coll = this.db.collection(obj.__collection__());
+    const coll = this.db().collection(obj.__collection__());
 
     if (obj.isNew()) {
       let data = obj.toObject(null, true);
@@ -159,7 +159,7 @@ export class DBShard {
 
   async deleteObj<T extends AbstractModel>(obj: T): Promise<void> {
     if (obj.isNew()) return;
-    const coll = this.db.collection(obj.__collection__());
+    const coll = this.db().collection(obj.__collection__());
     await coll.deleteOne({ _id: obj._id });
   }
 
@@ -167,7 +167,7 @@ export class DBShard {
     collection: string,
     query: { [key: string]: any }
   ): Promise<DeleteWriteOpResultObject> {
-    const coll = this.db.collection(collection);
+    const coll = this.db().collection(collection);
     return await coll.deleteMany(query);
   }
 
@@ -176,7 +176,7 @@ export class DBShard {
     query: { [key: string]: any },
     update: { [key: string]: any }
   ): Promise<UpdateWriteOpResult> {
-    const coll = this.db.collection(collection);
+    const coll = this.db().collection(collection);
     return await coll.updateMany(query, update);
   }
 }
