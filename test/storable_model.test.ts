@@ -1,4 +1,12 @@
-import { StorableModel, Field, db } from '../src';
+import {
+  StorableModel,
+  StringField,
+  AnyField,
+  ArrayField,
+  NumberField,
+  ObjectField,
+  db,
+} from '../src';
 import { Cursor } from 'mongodb';
 import { initDatabases } from './util';
 
@@ -9,11 +17,12 @@ function callable(): number {
 }
 
 class TestModel extends StorableModel {
-  @Field({ defaultValue: 'default_value', rejected: true }) field1: string;
-  @Field({ required: true }) field2: string;
-  @Field({ defaultValue: 'required_default_value', required: true })
+  @StringField({ defaultValue: 'default_value', rejected: true })
+  field1: string;
+  @StringField({ required: true }) field2: string;
+  @StringField({ defaultValue: 'required_default_value', required: true })
   field3: string;
-  @Field({ defaultValue: callable }) callable_default_field: number;
+  @NumberField({ defaultValue: callable }) callable_default_field: number;
 }
 
 describe('storable model', () => {
@@ -216,18 +225,20 @@ describe('storable model', () => {
   });
   it('fields explicitly set to null in ctor are affected by model defaults', async () => {
     class CModel extends StorableModel {
-      @Field() f1: any;
-      @Field() f2: any;
-      @Field() f3: any;
-      @Field() f4: any;
+      @AnyField() f1: any;
+      @AnyField() f2: any;
+      @AnyField() f3: any;
+      @AnyField() f4: any;
       static _collection = 'cmodel';
     }
 
     class DModel extends StorableModel {
-      @Field({ defaultValue: 1 }) f1: number;
-      @Field({ defaultValue: [] }) f2: string[];
-      @Field({ defaultValue: '3' }) f3: string;
-      @Field({ defaultValue: { hello: 'world' } }) f4: { [key: string]: any };
+      @NumberField({ defaultValue: 1 }) f1: number;
+      @ArrayField({ defaultValue: [] }) f2: string[];
+      @StringField({ defaultValue: '3' }) f3: string;
+      @ObjectField({ defaultValue: { hello: 'world' } }) f4: {
+        [key: string]: any;
+      };
       static _collection = 'cmodel';
     }
 

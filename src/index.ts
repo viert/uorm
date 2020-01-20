@@ -1,11 +1,9 @@
-import { Field, AsyncComputed, SaveRequired } from './decorators';
+import db from './db';
 import AbstractModel from './abstract_model';
 import StorableModel from './storable_model';
 import ShardedModel from './sharded_model';
 import StorableSubmodel from './storable_submodel';
 import ShardedSubmodel from './sharded_submodel';
-import { FieldRequired, InvalidFieldType, ModelSaveRequired } from './errors';
-import db, { DBShard, DBConfig } from './db';
 
 export {
   AbstractModel,
@@ -13,13 +11,20 @@ export {
   ShardedModel,
   StorableSubmodel,
   ShardedSubmodel,
-  FieldRequired,
-  InvalidFieldType,
-  ModelSaveRequired,
-  DBShard,
-  DBConfig,
-  Field,
-  AsyncComputed,
-  SaveRequired,
   db,
 };
+
+export {
+  AsyncComputed,
+  SaveRequired,
+  FieldType,
+  NumberField,
+  StringField,
+  AnyField,
+  ArrayField,
+  ObjectIdField,
+  ObjectField,
+  DatetimeField,
+} from './decorators';
+export * from './errors';
+export { DBShard, DBConfig } from './db';

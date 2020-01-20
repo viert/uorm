@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { ObjectID } from 'bson';
-import { InvalidFieldType, FieldRequired } from './errors';
+import { FieldRequired, ValidationError } from './errors';
 import {
-  Field,
+  FieldType,
   FIELDS_META_KEY,
   FIELD_TYPES_META_KEY,
   REJECTED_FIELDS_META_KEY,
@@ -11,17 +11,58 @@ import {
   DEFAULT_VALUES_META_KEY,
   REQUIRED_FIELDS_META_KEY,
   ASYNC_COMPUTED_PROPERTIES_META_KEY,
+  ObjectIdField,
 } from './decorators';
 import db, { DBShard } from './db';
 
-function validateType(value: any, type: any): boolean {
-  return (
-    value instanceof type ||
-    (typeof value === 'string' && type.name === 'String') ||
-    (typeof value === 'number' && type.name === 'Number') ||
-    (typeof value === 'boolean' && type.name === 'Boolean') ||
-    type.name === 'Object' // for everything else, including any
-  );
+function validateField(
+  field: string,
+  value: any,
+  type: FieldType,
+  required: boolean,
+  autotrim: boolean
+) {
+  // null fields are ok
+  if (value === null) {
+    if (required) {
+      console.log('throwing fieldrequired');
+      throw new FieldRequired(`Field ${field} is required, got null`);
+    }
+    return;
+  }
+
+  switch (type) {
+    case FieldType.any:
+      return;
+    case FieldType.array:
+      if (value instanceof Array) return;
+      throw new ValidationError(`Field ${field} must be an array`);
+    case FieldType.number:
+      if (value instanceof Number || typeof value === 'number') return;
+      throw new ValidationError(`Field ${field} must be a number`);
+    case FieldType.string:
+      if (value instanceof String || typeof value === 'string') {
+        if (autotrim) {
+          value = value.trim();
+        }
+        if (required && !value) {
+          throw new FieldRequired(`Field ${field} can not be empty`);
+        }
+        return;
+      }
+      throw new ValidationError(`Field ${field} must be a string`);
+    case FieldType.datetime:
+      if (value instanceof Date) return;
+      throw new ValidationError(`Field ${field} must be a datetime`);
+    case FieldType.objectid:
+      if (value instanceof ObjectID) return;
+      throw new ValidationError(`Field ${field} must be an ObjectID instance`);
+    case FieldType.object:
+      if (value instanceof Object) return;
+      throw new ValidationError(`Field ${field} must be an object`);
+    default:
+      return;
+  }
 }
 
 function snakeCase(name: string) {
@@ -42,7 +83,7 @@ function snakeCase(name: string) {
 }
 
 export default abstract class AbstractModel {
-  @Field() _id: ObjectID | null;
+  @ObjectIdField() _id: ObjectID | null;
   protected static _collection: string | null = null;
 
   static __collection__(): string {
@@ -339,42 +380,20 @@ export default abstract class AbstractModel {
   }
 
   protected _validate() {
-    let fields = this.__fields__();
-    let fieldTypes = this.__field_types__();
-    let requiredFields = this.__required_fields__();
-    let autoTrimFields = this.__auto_trim_fields__();
+    const fields = this.__fields__();
+    const fieldTypes = this.__field_types__();
+    const requiredFields = this.__required_fields__();
+    const autoTrimFields = this.__auto_trim_fields__();
 
-    for (let field of fields) {
-      if (field === '_id') continue;
-      let value = this.__getField(field);
-
-      // check field type
-      let fieldType = fieldTypes[field];
-      if (!validateType(value, fieldType)) {
-        if (value === null && fieldType) {
-          throw new InvalidFieldType(
-            `field "${field}" value has invalid type null, ${fieldType.name} expected`
-          );
-        } else {
-          let valueType = value.constructor;
-          throw new InvalidFieldType(
-            `field "${field}" value has invalid type ${valueType.name}, ${fieldType.name} expected`
-          );
-        }
-      }
-
-      // autotrim runs before "required" check
-      // to throw errors on whitespace-only strings
-      if (fieldType.name === 'String' && autoTrimFields.includes(field)) {
-        value = value.trim();
-        this.__setField(field, value);
-      }
-
-      // check required
-      if (requiredFields.includes(field) && !value) {
-        throw new FieldRequired(field);
-      }
-    }
+    fields.forEach(field => {
+      if (field === '_id') return;
+      const value = this.__getField(field);
+      const fieldType = fieldTypes[field];
+      const isRequired = requiredFields.includes(field);
+      const autoTrim = autoTrimFields.includes(field);
+      validateField(field, value, fieldType, isRequired, autoTrim);
+      if (autoTrim && value && value.trim) this.__setField(field, value.trim());
+    });
   }
   protected async _before_save() {}
   protected async _before_validation() {}

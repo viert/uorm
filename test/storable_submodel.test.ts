@@ -1,11 +1,11 @@
 import { initDatabases } from './util';
-import { StorableSubmodel, Field, db } from '../src';
+import { StorableSubmodel, NumberField, db } from '../src';
 import { ObjectID } from 'bson';
 import { WrongSubmodel, MissingSubmodel, SubmodelError } from '../src/errors';
 
 class TestBaseSubmodel extends StorableSubmodel {
-  @Field({ defaultValue: 1 }) field1: number;
-  @Field({ defaultValue: 2 }) field2: number;
+  @NumberField({ defaultValue: 1 }) field1: number;
+  @NumberField({ defaultValue: 2 }) field2: number;
   static _collection = 'submodel1';
 }
 

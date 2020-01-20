@@ -1,4 +1,4 @@
-import { db, ShardedModel, Field } from '../src';
+import { db, ShardedModel, StringField, NumberField } from '../src';
 import { initDatabases } from './util';
 import { Cursor } from 'mongodb';
 
@@ -9,11 +9,12 @@ function callable(): number {
 }
 
 class TestModel extends ShardedModel {
-  @Field({ defaultValue: 'default_value', rejected: true }) field1: string;
-  @Field({ required: true }) field2: string;
-  @Field({ defaultValue: 'required_default_value', required: true })
+  @StringField({ defaultValue: 'default_value', rejected: true })
+  field1: string;
+  @StringField({ required: true }) field2: string;
+  @StringField({ defaultValue: 'required_default_value', required: true })
   field3: string;
-  @Field({ defaultValue: callable }) callable_default_field: number;
+  @NumberField({ defaultValue: callable }) callable_default_field: number;
 }
 
 describe('sharded model', () => {

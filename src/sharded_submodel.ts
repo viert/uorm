@@ -1,7 +1,7 @@
 import ShardedModel from './sharded_model';
 import AbstractModel from './abstract_model';
 import { Constructor } from './util';
-import { Field } from './decorators';
+import { StringField } from './decorators';
 import {
   WrongSubmodel,
   SubmodelError,
@@ -10,7 +10,7 @@ import {
 } from './errors';
 
 export default class ShardedSubmodel extends ShardedModel {
-  @Field() submodel: string;
+  @StringField() submodel: string;
 
   static __submodel__: string | null = null;
   static __submodel_loaders: {

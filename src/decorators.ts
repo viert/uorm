@@ -10,25 +10,27 @@ export const RESTRICTED_FIELDS_META_KEY = 'uorm:restricted_fields';
 export const AUTO_TRIM_FIELDS_META_KEY = 'uorm:auto_trim_fields';
 export const ASYNC_COMPUTED_PROPERTIES_META_KEY = 'uorm:async_computed_fields';
 
-/**
- * Field decorates a StorableModel property to make it a storable field
- * @param config
- *    optional parameter containing field settings like
- *    - required
- *    - rejected
- *    - restricted
- *    - autoTrim
- *    - defaultValue
- *
- */
-export function Field(
-  config: {
-    required?: boolean;
-    rejected?: boolean;
-    restricted?: boolean;
-    autoTrim?: boolean;
-    defaultValue?: any;
-  } = {}
+interface FieldConfig {
+  required?: boolean;
+  rejected?: boolean;
+  restricted?: boolean;
+  autoTrim?: boolean;
+  defaultValue?: any;
+}
+
+export enum FieldType {
+  any = 'any',
+  number = 'number',
+  string = 'string',
+  array = 'array',
+  objectid = 'objectid',
+  datetime = 'datetime',
+  object = 'object',
+}
+
+function setupField(
+  type: FieldType,
+  config: FieldConfig = {}
 ): (target: any, propertyName: string) => void {
   const {
     defaultValue = null,
@@ -39,19 +41,15 @@ export function Field(
   } = config;
 
   return function __decorate(target: any, propertyName: string) {
-    const fieldType = Reflect.getMetadata('design:type', target, propertyName);
-
-    let ormFields = [propertyName];
+    let ormFields: string[] = [];
     if (Reflect.hasMetadata(FIELDS_META_KEY, target)) {
-      ormFields = [
-        ...Reflect.getMetadata(FIELDS_META_KEY, target),
-        ...ormFields,
-      ];
+      ormFields = [...Reflect.getMetadata(FIELDS_META_KEY, target)];
     }
+    ormFields.push(propertyName);
     Reflect.defineMetadata(FIELDS_META_KEY, ormFields, target);
 
     let ormFieldTypes = {
-      [propertyName]: fieldType,
+      [propertyName]: type,
     };
     if (Reflect.hasMetadata(FIELD_TYPES_META_KEY, target)) {
       ormFieldTypes = {
@@ -89,6 +87,21 @@ export function Field(
     }
   };
 }
+
+export const StringField = (config: FieldConfig = {}) =>
+  setupField(FieldType.string, config);
+export const NumberField = (config: FieldConfig = {}) =>
+  setupField(FieldType.number, config);
+export const ObjectIdField = (config: FieldConfig = {}) =>
+  setupField(FieldType.objectid, config);
+export const ObjectField = (config: FieldConfig = {}) =>
+  setupField(FieldType.object, config);
+export const AnyField = (config: FieldConfig = {}) =>
+  setupField(FieldType.any, config);
+export const ArrayField = (config: FieldConfig = {}) =>
+  setupField(FieldType.array, config);
+export const DatetimeField = (config: FieldConfig = {}) =>
+  setupField(FieldType.datetime, config);
 
 export function AsyncComputed() {
   return function __decorate(

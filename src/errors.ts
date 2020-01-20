@@ -56,3 +56,7 @@ export class UnknownSubmodel extends Error {
 export class TypeError extends Error {
   name = 'TypeError';
 }
+
+export class ValidationError extends Error {
+  name = 'ValidationError';
+}
