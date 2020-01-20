@@ -47,6 +47,22 @@ describe('storable model', () => {
     }
   });
 
+  it('update() should not affect not updated fields', async () => {
+    let model = new TestModel({
+      field1: 'orig1',
+      field2: 'orig2',
+      field3: 'orig3',
+      callable_default_field: 14,
+    });
+    await model.save();
+    await model.update({ field2: 'updated2' });
+    await model.reload();
+    expect(model.field1).toEqual('orig1');
+    expect(model.field2).toEqual('updated2');
+    expect(model.field3).toEqual('orig3');
+    expect(model.callable_default_field).toEqual(14);
+  });
+
   it('rejected fields should not be updated', async () => {
     let model: TestModel | null = new TestModel({
       field1: 'original_value',
