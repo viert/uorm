@@ -6,19 +6,9 @@ import {
 } from 'mongodb';
 
 import AbstractModel from './abstract_model';
-import db, { DBShard } from './db';
 import { ModelDestroyed } from './errors';
 
 export default class StorableModel extends AbstractModel {
-  static db(): DBShard {
-    return db.meta();
-  }
-
-  // a hack to make 'db' both static and instance property
-  db(): DBShard {
-    return (this.constructor as typeof StorableModel).db();
-  }
-
   async _delete_from_db() {
     await this.db().deleteObj(this);
   }

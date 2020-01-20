@@ -106,6 +106,26 @@ describe('storable model', () => {
     }
   });
 
+  it('dbUpdate updates fields', async () => {
+    let model = new TestModel({
+      field1: 'orig1',
+      field2: 'orig2',
+      field3: 'orig3',
+      callable_default_field: 14,
+    });
+    await model.save();
+    await model.dbUpdate({ $set: { field3: 'updated3' } });
+    expect(model.field1).toEqual('orig1');
+    expect(model.field2).toEqual('orig2');
+    expect(model.field3).toEqual('updated3');
+    expect(model.callable_default_field).toEqual(14);
+
+    await model.dbUpdate({ $set: { field2: 'updated2' } }, null, false);
+    expect(model.field2).toEqual('orig2');
+    await model.reload();
+    expect(model.field2).toEqual('updated2');
+  });
+
   it('updateMany updates according to query', async () => {
     let model1: TestModel | null = new TestModel({
       field1: 'original_value',

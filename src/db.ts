@@ -179,6 +179,28 @@ export class DBShard {
     const coll = this.db().collection(collection);
     return await coll.updateMany(query, update);
   }
+
+  async findAndUpdateObj<T extends AbstractModel>(
+    obj: T,
+    update: { [key: string]: any },
+    when: { [key: string]: any } | null = null
+  ): Promise<{ [key: string]: any } | null> {
+    let query: { [key: string]: any } = { _id: obj._id };
+    if (when) {
+      query = {
+        ...when,
+        ...query,
+      };
+    }
+    const result = await this.db()
+      .collection(obj.__collection__())
+      .findOneAndUpdate(query, update, { returnOriginal: false });
+    let newData = result.value;
+    if (newData && this.shardId) {
+      newData['shardId'] = this.shardId;
+    }
+    return newData;
+  }
 }
 
 class DB {

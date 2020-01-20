@@ -12,6 +12,7 @@ import {
   REQUIRED_FIELDS_META_KEY,
   ASYNC_COMPUTED_PROPERTIES_META_KEY,
 } from './decorators';
+import db, { DBShard } from './db';
 
 function validateType(value: any, type: any): boolean {
   return (
@@ -53,6 +54,15 @@ export default abstract class AbstractModel {
   // a hack to make '__collection__' both static and instance property
   __collection__(): string {
     return (this.constructor as typeof AbstractModel).__collection__();
+  }
+
+  static db(): DBShard {
+    return db.meta();
+  }
+
+  // a hack to make 'db' both static and instance property
+  db(): DBShard {
+    return (this.constructor as typeof AbstractModel).db();
   }
 
   protected static _preprocessQuery(query: {
@@ -212,6 +222,36 @@ export default abstract class AbstractModel {
       }
     }
     Reflect.set(this, key, value);
+  }
+
+  protected __reloadFromObj(obj: { [key: string]: any }) {
+    for (const field of this.__fields__()) {
+      if (field === '_id') {
+        continue;
+      }
+      if (field in obj) {
+        this.__setField(field, obj[field]);
+      }
+    }
+  }
+
+  async dbUpdate(
+    update: { [key: string]: any },
+    when: { [key: string]: any } | null = null,
+    reload: boolean = true,
+    invalidateCache: boolean = true
+  ) {
+    const newData = await this.db().findAndUpdateObj(this, update, when);
+
+    if (newData) {
+      if (invalidateCache) {
+        await this.invalidate();
+      }
+      if (reload) {
+        const tmp = (this.constructor as any).fromData(newData);
+        this.__reloadFromObj(tmp);
+      }
+    }
   }
 
   toObject(
