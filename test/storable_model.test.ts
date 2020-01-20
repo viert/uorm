@@ -214,4 +214,37 @@ describe('storable model', () => {
       expect(item).toBeInstanceOf(TestModel);
     });
   });
+  it('fields explicitly set to null in ctor are affected by model defaults', async () => {
+    class CModel extends StorableModel {
+      @Field() f1: any;
+      @Field() f2: any;
+      @Field() f3: any;
+      @Field() f4: any;
+      static _collection = 'cmodel';
+    }
+
+    class DModel extends StorableModel {
+      @Field({ defaultValue: 1 }) f1: number;
+      @Field({ defaultValue: [] }) f2: string[];
+      @Field({ defaultValue: '3' }) f3: string;
+      @Field({ defaultValue: { hello: 'world' } }) f4: { [key: string]: any };
+      static _collection = 'cmodel';
+    }
+
+    let model = new CModel({ f1: null, f2: null, f3: null, f4: null });
+    await model.save();
+
+    let model2 = await DModel.findOne({ _id: model._id });
+    if (model2 === null) {
+      fail();
+    }
+    expect(model2.f1).toEqual(1);
+    expect(model2.f2).toEqual([]);
+    expect(model2.f3).toEqual('3');
+    expect(model2.f4).toHaveProperty('hello');
+    expect(model2.f4.hello).toEqual('world');
+
+    await model2.update({ f1: 5 });
+    expect(model2.f1).toEqual(5);
+  });
 });

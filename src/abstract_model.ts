@@ -19,7 +19,8 @@ function validateType(value: any, type: any): boolean {
     value instanceof type ||
     (typeof value === 'string' && type.name === 'String') ||
     (typeof value === 'number' && type.name === 'Number') ||
-    (typeof value === 'boolean' && type.name === 'Boolean')
+    (typeof value === 'boolean' && type.name === 'Boolean') ||
+    type.name === 'Object' // for everything else, including any
   );
 }
 
