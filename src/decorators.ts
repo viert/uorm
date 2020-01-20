@@ -128,7 +128,7 @@ export function SaveRequired<T extends AbstractModel>(
 ) {
   const original = descriptor.value;
   descriptor.value = function(...args: any[]) {
-    if ((this as T).isNew) {
+    if ((this as T).isNew()) {
       throw new ModelSaveRequired();
     }
     return original.apply(this, args);
