@@ -28,13 +28,22 @@ describe('storable model', () => {
   });
 
   afterAll(async done => {
-    await db.meta.db.dropDatabase();
+    await db
+      .meta()
+      .db()
+      .dropDatabase();
+    for (const shardId in db.shards()) {
+      await db
+        .getShard(shardId)
+        .db()
+        .dropDatabase();
+    }
     done();
   });
 
   it('has a proper collection name', () => {
     const model = new TestModel({ field2: 'mymodel' });
-    expect(model.__collection__).toEqual('test_model');
+    expect(model.__collection__()).toEqual('test_model');
   });
 
   it('once saved let be acquired', async () => {

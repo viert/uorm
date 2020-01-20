@@ -4,6 +4,7 @@ import {
   SaveRequired,
   InvalidFieldType,
   AsyncComputed,
+  ModelSaveRequired,
 } from '../src';
 import { ObjectID } from 'bson';
 
@@ -18,7 +19,7 @@ class TestModel extends AbstractModel {
   @Field({ defaultValue: callable }) field3: number;
 
   getFields(): string[] {
-    return this.__fields__;
+    return this.__fields__();
   }
   async _delete_from_db() {}
   async _save_to_db() {}
@@ -26,6 +27,13 @@ class TestModel extends AbstractModel {
   @SaveRequired
   getField1() {
     return this.field1;
+  }
+
+  get computed1() {
+    return 1;
+  }
+  get computed2() {
+    return 'my value';
   }
 
   @AsyncComputed()
@@ -48,7 +56,7 @@ describe('abstract model', () => {
 
   it('incomplete model fails to validate', () => {
     let model = new TestModel({});
-    expect(model.isValid).toBeFalsy();
+    expect(model.isValid()).toBeFalsy();
   });
 
   it('callable defaults produce values', () => {
@@ -58,16 +66,24 @@ describe('abstract model', () => {
     expect(model.field3).toEqual(4);
   });
 
+  it('defaults cover explicitly nulled values', () => {
+    let model = new TestModel({
+      field1: 'value1',
+      field3: null,
+    });
+    expect(model.field3).toEqual(4);
+  });
+
   it('type validation works', () => {
     let model = new TestModel({
       field1: 'value1',
     });
-    expect(model.isValid).toBeTruthy();
+    expect(model.isValid()).toBeTruthy();
 
     model = new TestModel({
       field1: 135,
     });
-    expect(model.isValid).toBeFalsy();
+    expect(model.isValid()).toBeFalsy();
   });
 
   it('autotrim fields are autotrimmed', async () => {
@@ -82,10 +98,10 @@ describe('abstract model', () => {
     let model = new TestModel({
       field1: 'value',
     });
-    let obj = model.toObject(['field1', 'isNew', 'isValid']);
+    let obj = model.toObject(['field1', 'computed1', 'computed2']);
     expect(obj.field1).toEqual('value');
-    expect(obj.isNew).toEqual(true);
-    expect(obj.isValid).toEqual(true);
+    expect(obj.computed1).toEqual(1);
+    expect(obj.computed2).toEqual('my value');
   });
 
   it('restricted fields are wiped out', () => {
@@ -102,7 +118,9 @@ describe('abstract model', () => {
     let model = new TestModel({
       field1: 'value',
     });
-    expect(model.getField1).toThrowError();
+    expect(() => {
+      model.getField1();
+    }).toThrow(ModelSaveRequired);
     model._id = new ObjectID();
     expect(model.getField1()).toEqual('value');
   });

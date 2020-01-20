@@ -10,27 +10,27 @@ import db, { DBShard } from './db';
 import { ModelDestroyed } from './errors';
 
 export default class StorableModel extends AbstractModel {
-  static get db(): DBShard {
-    return db.meta;
+  static db(): DBShard {
+    return db.meta();
   }
 
   // a hack to make 'db' both static and instance property
-  get db(): DBShard {
-    return (this.constructor as typeof StorableModel).db;
+  db(): DBShard {
+    return (this.constructor as typeof StorableModel).db();
   }
 
   async _delete_from_db() {
-    await this.db.deleteObj(this);
+    await this.db().deleteObj(this);
   }
 
   async _save_to_db() {
-    await this.db.saveObj(this);
+    await this.db().saveObj(this);
   }
 
   static find(query: { [key: string]: any } = {}): Cursor {
-    return this.db.getObjs(
+    return this.db().getObjs(
       this.fromData.bind(this),
-      this.__collection__,
+      this.__collection__(),
       this._preprocessQuery(query)
     );
   }
@@ -40,8 +40,8 @@ export default class StorableModel extends AbstractModel {
     query: { [key: string]: any },
     ..._: any[]
   ): Promise<InstanceType<T> | null> {
-    const obj = await this.db.getObj(
-      this.__collection__,
+    const obj = await this.db().getObj(
+      this.__collection__(),
       this._preprocessQuery(query)
     );
     if (!obj) return null;
@@ -80,7 +80,7 @@ export default class StorableModel extends AbstractModel {
   }
 
   async reload<T extends StorableModel>(this: T): Promise<void> {
-    if (this.isNew) return;
+    if (this.isNew()) return;
     let constructor = this.constructor as typeof StorableModel;
 
     let tmp = await constructor.findOne({
@@ -91,7 +91,7 @@ export default class StorableModel extends AbstractModel {
       throw new ModelDestroyed();
     }
 
-    this.__fields__.forEach(field => {
+    this.__fields__().forEach(field => {
       if (field === '_id') return;
       this.__setField(field, (tmp as StorableModel).__getField(field));
     });
@@ -101,8 +101,8 @@ export default class StorableModel extends AbstractModel {
     query: { [key: string]: any },
     attrs: { [key: string]: any }
   ): Promise<UpdateWriteOpResult> {
-    return await this.db.updateQuery(
-      this.__collection__,
+    return await this.db().updateQuery(
+      this.__collection__(),
       this._preprocessQuery(query),
       attrs
     );
@@ -111,8 +111,8 @@ export default class StorableModel extends AbstractModel {
   static async destroyMany(query: {
     [key: string]: any;
   }): Promise<DeleteWriteOpResultObject> {
-    return await this.db.deleteQuery(
-      this.__collection__,
+    return await this.db().deleteQuery(
+      this.__collection__(),
       this._preprocessQuery(query)
     );
   }

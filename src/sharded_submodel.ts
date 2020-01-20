@@ -17,13 +17,17 @@ export default class ShardedSubmodel extends ShardedModel {
     [key: string]: Constructor<ShardedSubmodel>;
   } = {};
 
-  get __submodel__() {
-    return (this.constructor as typeof ShardedSubmodel).__submodel__;
+  __submodel__(): string {
+    const submodel = (this.constructor as typeof ShardedSubmodel).__submodel__;
+    if (submodel === null) {
+      throw new SubmodelError('submodel is not defined, this might be a bug');
+    }
+    return submodel;
   }
 
   constructor(shardId: string, data: { [key: string]: any } = {}) {
     super(shardId, data);
-    if (this.isNew) {
+    if (this.isNew()) {
       if (!this.__submodel__) {
         throw new SubmodelError(
           `Attempted to create an object of abstract model ${this.constructor.name}`
@@ -34,7 +38,7 @@ export default class ShardedSubmodel extends ShardedModel {
           'Attempt to override submodel for a new object'
         );
       }
-      this.submodel = this.__submodel__;
+      this.submodel = this.__submodel__();
     } else {
       if (!this.submodel) {
         throw new MissingSubmodel(
@@ -46,7 +50,7 @@ export default class ShardedSubmodel extends ShardedModel {
   }
 
   _checkSubmodel() {
-    if (this.submodel !== this.__submodel__) {
+    if (this.submodel !== this.__submodel__()) {
       throw new WrongSubmodel(
         `Attempted to load ${this.submodel} as ${this.constructor.name}. Correct submodel would be ${this.__submodel__}. Bug?`
       );

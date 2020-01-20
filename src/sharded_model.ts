@@ -13,16 +13,16 @@ export default class ShardedModel extends AbstractModel {
     super(data);
   }
 
-  get db(): DBShard {
+  db(): DBShard {
     return db.getShard(this.shardId);
   }
 
   async _delete_from_db() {
-    await this.db.deleteObj(this);
+    await this.db().deleteObj(this);
   }
 
   async _save_to_db() {
-    await this.db.saveObj(this);
+    await this.db().saveObj(this);
   }
 
   static find(shardId: string, query: { [key: string]: any } = {}): Cursor {
@@ -30,7 +30,7 @@ export default class ShardedModel extends AbstractModel {
       .getShard(shardId)
       .getObjs(
         this.fromData.bind(this),
-        this.__collection__,
+        this.__collection__(),
         this._preprocessQuery(query)
       );
   }
@@ -43,7 +43,7 @@ export default class ShardedModel extends AbstractModel {
     if (!shardId) throw new MissingShardId();
     const obj = await db
       .getShard(shardId)
-      .getObj(this.__collection__, this._preprocessQuery(query));
+      .getObj(this.__collection__(), this._preprocessQuery(query));
     if (!obj) return null;
     return new this(shardId, obj) as InstanceType<T>;
   }
@@ -76,7 +76,7 @@ export default class ShardedModel extends AbstractModel {
   }
 
   async reload<T extends ShardedModel>(this: T): Promise<void> {
-    if (this.isNew) return;
+    if (this.isNew()) return;
     let constructor = this.constructor as typeof ShardedModel;
 
     let tmp = await constructor.findOne(this.shardId, {
@@ -87,7 +87,7 @@ export default class ShardedModel extends AbstractModel {
       throw new ModelDestroyed();
     }
 
-    this.__fields__.forEach(field => {
+    this.__fields__().forEach(field => {
       if (field === '_id') return;
       this.__setField(field, (tmp as ShardedModel).__getField(field));
     });
@@ -100,7 +100,7 @@ export default class ShardedModel extends AbstractModel {
   ): Promise<UpdateWriteOpResult> {
     return await db
       .getShard(shardId)
-      .updateQuery(this.__collection__, this._preprocessQuery(query), attrs);
+      .updateQuery(this.__collection__(), this._preprocessQuery(query), attrs);
   }
 
   static async destroyMany(
@@ -111,7 +111,7 @@ export default class ShardedModel extends AbstractModel {
   ): Promise<DeleteWriteOpResultObject> {
     return await db
       .getShard(shardId)
-      .deleteQuery(this.__collection__, this._preprocessQuery(query));
+      .deleteQuery(this.__collection__(), this._preprocessQuery(query));
   }
 
   static async destroyAll(shardId: string) {
