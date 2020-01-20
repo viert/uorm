@@ -1,9 +1,10 @@
 import {
   AbstractModel,
-  Field,
+  StringField,
+  NumberField,
   SaveRequired,
-  InvalidFieldType,
   AsyncComputed,
+  ValidationError,
   ModelSaveRequired,
 } from '../src';
 import { ObjectID } from 'bson';
@@ -14,9 +15,10 @@ function callable(): number {
 
 class TestModel extends AbstractModel {
   static __key_field__ = 'field1';
-  @Field({ required: true }) field1: string;
-  @Field({ defaultValue: 'default_value', restricted: true }) field2: string;
-  @Field({ defaultValue: callable }) field3: number;
+  @StringField({ required: true }) field1: string;
+  @StringField({ defaultValue: 'default_value', restricted: true })
+  field2: string;
+  @NumberField({ defaultValue: callable }) field3: number;
 
   getFields(): string[] {
     return this.__fields__();
@@ -75,6 +77,7 @@ describe('abstract model', () => {
   });
 
   it('type validation works', () => {
+    console.log('TYPE VALIDATION');
     let model = new TestModel({
       field1: 'value1',
     });
@@ -135,7 +138,7 @@ describe('abstract model', () => {
     } catch (e) {
       actualError = e;
     }
-    expect(actualError).toBeInstanceOf(InvalidFieldType);
+    expect(actualError).toBeInstanceOf(ValidationError);
   });
 
   it('async computed properties calculate properly', async () => {
