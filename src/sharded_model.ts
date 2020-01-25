@@ -52,7 +52,7 @@ export default class ShardedModel extends AbstractModel {
     this: T,
     shardId: string,
     expression: any,
-    raiseNotFound: string | null = null
+    raiseNotFound: string | Error | null = null
   ): Promise<InstanceType<T> | null> {
     if (expression === null) return null;
     let query: { [key: string]: any };
@@ -70,6 +70,9 @@ export default class ShardedModel extends AbstractModel {
 
     let result = await this.findOne(shardId, query);
     if (result === null && raiseNotFound !== null) {
+      if (raiseNotFound instanceof Error) {
+        throw raiseNotFound;
+      }
       throw new Error(raiseNotFound);
     }
     return result as InstanceType<T> | null;

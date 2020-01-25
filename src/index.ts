@@ -25,6 +25,7 @@ export {
   ObjectIdField,
   ObjectField,
   DatetimeField,
+  BooleanField,
 } from './decorators';
 export * from './errors';
 export { DBShard, DBConfig } from './db';

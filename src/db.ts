@@ -19,7 +19,7 @@ function createObjectsCursor<T extends AbstractModel>(
   cursor: Cursor,
   shardId: string | null,
   ctor: (data: { [key: string]: any }) => T
-) {
+): Cursor {
   return new Proxy(cursor, {
     get(target, propKey) {
       switch (propKey) {
@@ -39,11 +39,12 @@ function createObjectsCursor<T extends AbstractModel>(
           };
         case Symbol.asyncIterator:
           return async function* asyncIter() {
-            for await (const item of cursor) {
+            while (await cursor.hasNext()) {
+              const item = await cursor.next();
               if (shardId) {
                 item['shard_id'] = shardId;
+                yield ctor(item);
               }
-              yield ctor(item);
             }
           };
         case 'next':

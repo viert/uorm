@@ -21,7 +21,7 @@ class TestModel extends AbstractModel {
   @NumberField({ defaultValue: callable }) field3: number;
 
   getFields(): string[] {
-    return this.__fields__();
+    return this.__fields__;
   }
   async _delete_from_db() {}
   async _save_to_db() {}
@@ -46,7 +46,7 @@ class TestModel extends AbstractModel {
 
 describe('abstract model', () => {
   it('constructor assigns values', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value1',
     });
     expect(model.getFields()).toContain('_id');
@@ -57,19 +57,19 @@ describe('abstract model', () => {
   });
 
   it('incomplete model fails to validate', () => {
-    let model = new TestModel({});
+    let model = TestModel.create({});
     expect(model.isValid()).toBeFalsy();
   });
 
   it('callable defaults produce values', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value1',
     });
     expect(model.field3).toEqual(4);
   });
 
   it('defaults cover explicitly nulled values', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value1',
       field3: null,
     });
@@ -78,19 +78,19 @@ describe('abstract model', () => {
 
   it('type validation works', () => {
     console.log('TYPE VALIDATION');
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value1',
     });
     expect(model.isValid()).toBeTruthy();
 
-    model = new TestModel({
+    model = TestModel.create({
       field1: 135,
     });
     expect(model.isValid()).toBeFalsy();
   });
 
   it('autotrim fields are autotrimmed', async () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: ' \t  trimmed   \n',
     });
     await model.save();
@@ -98,7 +98,7 @@ describe('abstract model', () => {
   });
 
   it('properties are visible in toObject', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value',
     });
     let obj = model.toObject(['field1', 'computed1', 'computed2']);
@@ -108,7 +108,7 @@ describe('abstract model', () => {
   });
 
   it('restricted fields are wiped out', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value',
       field2: 'value2',
     });
@@ -118,7 +118,7 @@ describe('abstract model', () => {
   });
 
   it('method with SaveRequired fails before saving', () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value',
     });
     expect(() => {
@@ -129,7 +129,7 @@ describe('abstract model', () => {
   });
 
   it('save fails if validation fails', async () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 135,
     });
     let actualError: any = null;
@@ -142,7 +142,7 @@ describe('abstract model', () => {
   });
 
   it('async computed properties calculate properly', async () => {
-    let model = new TestModel({
+    let model = TestModel.create({
       field1: 'value1',
       field2: 'value2',
       field3: 'value3',

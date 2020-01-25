@@ -1,19 +1,9 @@
 import 'reflect-metadata';
 import { ObjectID } from 'bson';
 import { FieldRequired, ValidationError } from './errors';
-import {
-  FieldType,
-  FIELDS_META_KEY,
-  FIELD_TYPES_META_KEY,
-  REJECTED_FIELDS_META_KEY,
-  RESTRICTED_FIELDS_META_KEY,
-  AUTO_TRIM_FIELDS_META_KEY,
-  DEFAULT_VALUES_META_KEY,
-  REQUIRED_FIELDS_META_KEY,
-  ASYNC_COMPUTED_PROPERTIES_META_KEY,
-  ObjectIdField,
-} from './decorators';
+import { FieldType, ObjectIdField } from './decorators';
 import db, { DBShard } from './db';
+import { Cursor } from 'mongodb';
 
 function validateField(
   field: string,
@@ -34,6 +24,9 @@ function validateField(
   switch (type) {
     case FieldType.any:
       return;
+    case FieldType.boolean:
+      if (value instanceof Boolean || typeof value === 'boolean') return;
+      throw new ValidationError(`Field ${field} must be a boolean`);
     case FieldType.array:
       if (value instanceof Array) return;
       throw new ValidationError(`Field ${field} must be an array`);
@@ -82,21 +75,30 @@ function snakeCase(name: string) {
   return result;
 }
 
-export default abstract class AbstractModel {
+type FieldTypesDescriptor = { [key: string]: FieldType };
+type DefaultsDescriptor = { [key: string]: any };
+
+export default class AbstractModel {
   @ObjectIdField() _id: ObjectID | null;
-  protected static _collection: string | null = null;
+  protected static __collection__: string | null = null;
+  protected static __fields__: string[] = [];
+  protected static __field_types__: FieldTypesDescriptor = {};
+  protected static __defaults__: DefaultsDescriptor = {};
+  protected static __required_fields__: string[] = [];
+  protected static __rejected_fields__: string[] = [];
+  protected static __restricted_fields__: string[] = [];
+  protected static __auto_trim_fields__: string[] = [];
+  protected static __async_computed__: string[] = [];
 
-  static __collection__(): string {
-    if (!this._collection) {
-      this._collection = snakeCase(this.name);
-    }
-    return this._collection;
-  }
-
-  // a hack to make '__collection__' both static and instance property
-  __collection__(): string {
-    return (this.constructor as typeof AbstractModel).__collection__();
-  }
+  readonly __collection__: string;
+  readonly __fields__: string[];
+  readonly __field_types__: FieldTypesDescriptor;
+  readonly __defaults__: DefaultsDescriptor;
+  readonly __required_fields__: string[];
+  readonly __rejected_fields__: string[];
+  readonly __restricted_fields__: string[];
+  readonly __auto_trim_fields__: string[];
+  readonly __async_computed__: string[];
 
   static db(): DBShard {
     return db.meta();
@@ -119,63 +121,20 @@ export default abstract class AbstractModel {
     return (this.constructor as any)._preprocessQuery(query);
   }
 
-  constructor(data: { [key: string]: any } = {}) {
-    let fields = this.__fields__();
-    let defaults = this.__defaults__();
-
-    for (const field of fields) {
-      let calculatedValue: any = null;
-
-      if (field in data) {
-        // explicit assignment
-        calculatedValue = data[field];
-      }
-
-      if (calculatedValue === null && field in defaults) {
-        // default values if no explicit value
-        let defaultValue = defaults[field];
-        if (defaultValue instanceof Array) {
-          calculatedValue = [...defaultValue];
-        } else if (defaultValue instanceof Function) {
-          calculatedValue = defaultValue();
-        } else {
-          calculatedValue = defaultValue;
-        }
-      }
-      Reflect.set(this, field, calculatedValue);
+  constructor() {
+    const ctor = this.constructor as typeof AbstractModel;
+    if (ctor.__collection__ === null) {
+      ctor.__collection__ = snakeCase(ctor.name);
     }
-  }
-
-  protected __fields__(): string[] {
-    return Reflect.getMetadata(FIELDS_META_KEY, this);
-  }
-
-  protected __field_types__(): { [key: string]: any } {
-    return Reflect.getMetadata(FIELD_TYPES_META_KEY, this);
-  }
-
-  protected __defaults__(): { [key: string]: any } {
-    return Reflect.getMetadata(DEFAULT_VALUES_META_KEY, this) || {};
-  }
-
-  protected __required_fields__(): string[] {
-    return Reflect.getMetadata(REQUIRED_FIELDS_META_KEY, this) || [];
-  }
-
-  protected __rejected_fields__(): string[] {
-    return Reflect.getMetadata(REJECTED_FIELDS_META_KEY, this) || [];
-  }
-
-  protected __restricted_fields__(): string[] {
-    return Reflect.getMetadata(RESTRICTED_FIELDS_META_KEY, this) || [];
-  }
-
-  protected __auto_trim_fields__(): string[] {
-    return Reflect.getMetadata(AUTO_TRIM_FIELDS_META_KEY, this) || [];
-  }
-
-  protected __async_computed__(): string[] {
-    return Reflect.getMetadata(ASYNC_COMPUTED_PROPERTIES_META_KEY, this) || [];
+    this.__collection__ = ctor.__collection__;
+    this.__fields__ = ctor.__fields__;
+    this.__field_types__ = ctor.__field_types__;
+    this.__defaults__ = ctor.__defaults__;
+    this.__rejected_fields__ = ctor.__rejected_fields__;
+    this.__required_fields__ = ctor.__required_fields__;
+    this.__restricted_fields__ = ctor.__restricted_fields__;
+    this.__auto_trim_fields__ = ctor.__auto_trim_fields__;
+    this.__async_computed__ = ctor.__async_computed__;
   }
 
   static __key_field__: string | null = null;
@@ -193,7 +152,7 @@ export default abstract class AbstractModel {
     }
     this._validate();
 
-    this.__auto_trim_fields__().forEach((field: string) => {
+    this.__auto_trim_fields__.forEach((field: string) => {
       let value = this.__getField(field);
       if (value && value.hasOwnProperty('trim')) {
         this.__setField(field, value.trim());
@@ -213,9 +172,12 @@ export default abstract class AbstractModel {
     data: { [key: string]: any },
     skipCallback: boolean = false
   ): Promise<void> {
-    const rejected = this.__rejected_fields__();
-    for (const field of this.__fields__()) {
-      if (field in data && !rejected.includes(field) && field !== '_id') {
+    for (const field of this.__fields__) {
+      if (
+        field in data &&
+        !this.__rejected_fields__.includes(field) &&
+        field !== '_id'
+      ) {
         this.__setField(field, data[field]);
       }
     }
@@ -247,7 +209,7 @@ export default abstract class AbstractModel {
       }
     }
 
-    const asyncComputed = this.__async_computed__();
+    const asyncComputed = this.__async_computed__;
     let value = Reflect.get(this, key);
     if (typeof value === 'function' && !asyncComputed.includes(key)) {
       return undefined;
@@ -267,7 +229,7 @@ export default abstract class AbstractModel {
   }
 
   protected __reloadFromObj(obj: { [key: string]: any }) {
-    for (const field of this.__fields__()) {
+    for (const field of this.__fields__) {
       if (field === '_id') {
         continue;
       }
@@ -300,16 +262,13 @@ export default abstract class AbstractModel {
     fields: string[] | null = null,
     includeRestricted: boolean = false
   ): { [key: string]: any } {
-    const restricted = this.__restricted_fields__();
-    const modelFields = this.__fields__();
-
     if (fields === null) {
-      fields = modelFields;
+      fields = this.__fields__;
     }
 
     let obj: { [key: string]: any } = {};
     for (const field of fields) {
-      if (includeRestricted || !restricted.includes(field)) {
+      if (includeRestricted || !this.__restricted_fields__.includes(field)) {
         const value = this.__getField(field);
         const valueType = typeof value;
         if (valueType !== 'undefined' && valueType !== 'function') {
@@ -324,9 +283,9 @@ export default abstract class AbstractModel {
     fields: string[] | null = null,
     includeRestricted: boolean = false
   ): Promise<{ [key: string]: any }> {
-    const restricted = this.__restricted_fields__();
-    const modelFields = this.__fields__();
-    const asyncComputedFields = this.__async_computed__();
+    const restricted = this.__restricted_fields__;
+    const modelFields = this.__fields__;
+    const asyncComputedFields = this.__async_computed__;
 
     if (fields === null) {
       fields = modelFields;
@@ -344,7 +303,10 @@ export default abstract class AbstractModel {
         agetters.push(getter());
       } else if (includeRestricted || !restricted.includes(field)) {
         let value = this.__getField(field);
-        if (typeof value !== 'undefined') {
+        if (value instanceof Cursor) {
+          afields.push(field);
+          agetters.push(value.toArray());
+        } else if (typeof value !== 'undefined') {
           obj[field] = value;
         }
       }
@@ -364,7 +326,7 @@ export default abstract class AbstractModel {
   toString(): string {
     let data = this.toObject(null, true);
     let result = `<${this.constructor.name}`;
-    for (let field of this.__fields__()) {
+    for (let field of this.__fields__) {
       result += ` ${field}=${data[field]}`;
     }
     return result + '>';
@@ -380,17 +342,12 @@ export default abstract class AbstractModel {
   }
 
   protected _validate() {
-    const fields = this.__fields__();
-    const fieldTypes = this.__field_types__();
-    const requiredFields = this.__required_fields__();
-    const autoTrimFields = this.__auto_trim_fields__();
-
-    fields.forEach(field => {
+    this.__fields__.forEach(field => {
       if (field === '_id') return;
       const value = this.__getField(field);
-      const fieldType = fieldTypes[field];
-      const isRequired = requiredFields.includes(field);
-      const autoTrim = autoTrimFields.includes(field);
+      const fieldType = this.__field_types__[field];
+      const isRequired = this.__required_fields__.includes(field);
+      const autoTrim = this.__auto_trim_fields__.includes(field);
       validateField(field, value, fieldType, isRequired, autoTrim);
       if (autoTrim && value && value.trim) this.__setField(field, value.trim());
     });
@@ -400,10 +357,39 @@ export default abstract class AbstractModel {
   protected async _before_delete() {}
   protected async _after_save(_isNew: boolean = true) {}
   protected async _after_delete() {}
-  protected abstract async _save_to_db(): Promise<any>;
-  protected abstract async _delete_from_db(): Promise<any>;
+  protected async _save_to_db(): Promise<any> {}
+  protected async _delete_from_db(): Promise<any> {}
   async invalidate() {}
 
+  static create<T extends typeof AbstractModel>(
+    this: T,
+    data: { [key: string]: any }
+  ): InstanceType<T> {
+    const ctor: T = this as T;
+    const r = new ctor();
+    for (const field of r.__fields__) {
+      let calculatedValue: any = null;
+
+      if (field in data) {
+        // explicit assignment
+        calculatedValue = data[field];
+      }
+
+      if (calculatedValue === null && field in r.__defaults__) {
+        // default values if no explicit value
+        let defaultValue = r.__defaults__[field];
+        if (defaultValue instanceof Array) {
+          calculatedValue = [...defaultValue];
+        } else if (defaultValue instanceof Function) {
+          calculatedValue = defaultValue();
+        } else {
+          calculatedValue = defaultValue;
+        }
+      }
+      Reflect.set(r, field, calculatedValue);
+    }
+    return r as InstanceType<T>;
+  }
   static fromData<T extends AbstractModel>(
     this: new (...args: any[]) => T,
     data: { [key: string]: any }

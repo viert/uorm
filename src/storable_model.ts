@@ -41,7 +41,7 @@ export default class StorableModel extends AbstractModel {
   static async get<T extends typeof StorableModel>(
     this: T,
     expression: any,
-    raiseNotFound: string | null = null,
+    raiseNotFound: string | Error | null = null,
     ..._: any[]
   ): Promise<InstanceType<T> | null> {
     if (expression === null) return null;
@@ -60,6 +60,9 @@ export default class StorableModel extends AbstractModel {
 
     let result = await this.findOne(query);
     if (result === null && raiseNotFound !== null) {
+      if (raiseNotFound instanceof Error) {
+        throw raiseNotFound;
+      }
       throw new Error(raiseNotFound);
     }
     return result;
