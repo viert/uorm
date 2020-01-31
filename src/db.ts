@@ -1,172 +1,98 @@
-import {
-  MongoClient,
-  Db,
-  Cursor,
-  DeleteWriteOpResultObject,
-  UpdateWriteOpResult,
-} from 'mongodb';
-
-import AbstractModel from './abstract_model';
+import { MongoClient, Db } from 'mongodb';
+import { BaseModel } from './model';
 import { InvalidShardId } from './errors';
+import { CommonObject, Nullable } from './util';
+import { ModelCursor } from './model_cursor';
 
-export interface DBConfig {
+export type ShardConfig = {
   uri: string;
-  options?: Object;
   dbname: string;
-}
+  options?: { [key: string]: any };
+};
 
-function createObjectsCursor<T extends AbstractModel>(
-  cursor: Cursor,
-  shardId: string | null,
-  ctor: (data: { [key: string]: any }) => T
-) {
-  return new Proxy(cursor, {
-    get(target, propKey) {
-      switch (propKey) {
-        case 'shardId':
-          return shardId;
-        case 'forEach':
-          return (
-            callback: (item: { [key: string]: any }, ...rest: any[]) => void
-          ) => {
-            cursor.forEach((item: { [key: string]: any }, ...rest: any[]) => {
-              if (shardId) {
-                item['shard_id'] = shardId;
-              }
-              let obj: T = ctor(item);
-              callback(obj, ...rest);
-            });
-          };
-        case Symbol.asyncIterator:
-          return async function* asyncIter() {
-            for await (const item of cursor) {
-              if (shardId) {
-                item['shard_id'] = shardId;
-              }
-              yield ctor(item);
-            }
-          };
-        case 'next':
-          return async () => {
-            let obj = await cursor.next();
-            return ctor(obj);
-          };
-        case 'toArray':
-          return async () => {
-            let objs = await cursor.toArray();
-            return objs.map(ctor);
-          };
-        default:
-          return Reflect.get(target, propKey);
-      }
-    },
-  });
-}
+export type DatabaseConfig = {
+  meta: ShardConfig;
+  shards: {
+    [key: string]: ShardConfig;
+  };
+};
 
-export class DBShard {
-  private config: DBConfig;
-  private database: Db | null = null;
-  private mongoClient: new (...args: any[]) => MongoClient = MongoClient;
+export type Query = CommonObject;
 
+export class Shard {
+  private database: Nullable<Db> = null;
   private constructor(
-    config: DBConfig,
-    private shardId: string | null = null,
-    overrideMongoClient: any
-  ) {
-    let { uri, dbname, options = {} } = config;
-    this.config = { uri, dbname, options };
-    if (overrideMongoClient) {
-      this.mongoClient = overrideMongoClient;
-    }
-  }
+    private config: ShardConfig,
+    private shardId: Nullable<string>
+  ) {}
 
-  async initConnection() {
-    // console.log('creating a read/write mongo connection');
-    const client = new this.mongoClient(this.config.uri, this.config.options);
-    return new Promise((resolve, reject) => {
-      client.connect((err: Error | null) => {
-        if (err === null) {
-          this.database = client.db(this.config.dbname);
-          return resolve(null);
-        }
-        return reject(err);
+  async init() {
+    let { uri, dbname, options = {} } = this.config;
+    return new Promise(resolve => {
+      MongoClient.connect(uri, options).then(client => {
+        this.database = client.db(dbname);
+        resolve();
       });
     });
   }
 
-  static async create(
-    config: DBConfig,
-    shardId: string | null = null,
-    overrideMongoClient: any = null
-  ): Promise<DBShard> {
-    const shard = new DBShard(config, shardId, overrideMongoClient);
-    await shard.initConnection();
+  static async create(config: ShardConfig, shardId: string | null) {
+    const shard = new Shard(config, shardId);
+    await shard.init();
     return shard;
   }
 
   db() {
-    if (this.database === null) throw new Error('not initialized');
+    if (this.database === null) {
+      throw new Error('shard not initialized');
+    }
     return this.database;
   }
 
-  async getObj(
+  async getObject<T extends typeof BaseModel>(
     collection: string,
-    query: { [key: string]: any }
-  ): Promise<{ [key: string]: any } | null> {
+    query: Query,
+    ctor: T
+  ) {
     const coll = this.db().collection(collection);
     const obj = await coll.findOne(query);
     if (obj === null) {
       return null;
     }
-    return obj as { [key: string]: any };
+    if (this.shardId) {
+      obj['shard_id'] = this.shardId;
+    }
+    return ctor.make(obj) as InstanceType<T>;
   }
 
-  getObjs<T extends AbstractModel>(
-    ctor: (...args: any[]) => T,
+  getObjectsCursor<T extends typeof BaseModel>(
     collection: string,
-    query: { [key: string]: any }
-  ): Cursor {
+    query: Query,
+    ctor: T
+  ) {
     const coll = this.db().collection(collection);
-    const cursor = coll.find(query);
-    return createObjectsCursor(cursor, this.shardId, ctor);
+    const mongoCursor = coll.find(query);
+    return new ModelCursor(mongoCursor, ctor, this.shardId);
   }
 
-  async getObjsProjected(
-    collection: string,
-    query: { [key: string]: any },
-    projection: { [key: string]: boolean }
-  ): Promise<Cursor> {
-    const coll = this.db().collection(collection);
-    const cursor = coll.find(query).project(projection);
-    return cursor;
-  }
-
-  async saveObj<T extends AbstractModel>(obj: T): Promise<void> {
-    const coll = this.db().collection(obj.__collection__());
-
+  async saveObj<T extends BaseModel>(obj: T) {
+    const coll = this.db().collection(obj.__collection__);
+    let data = obj.toObject(null, true);
     if (obj.isNew()) {
-      let data = obj.toObject(null, true);
       delete data['_id'];
-
-      const insertedObj = await coll.insertOne(data);
-      obj._id = insertedObj.insertedId;
+      const inserted = await coll.insertOne(data);
+      obj._id = inserted.insertedId;
     } else {
-      await coll.replaceOne({ _id: obj._id }, obj.toObject(null, true), {
-        upsert: true,
-      });
+      await coll.replaceOne({ _id: obj._id }, data, { upsert: true });
     }
   }
 
-  async deleteObj<T extends AbstractModel>(obj: T): Promise<void> {
-    if (obj.isNew()) return;
-    const coll = this.db().collection(obj.__collection__());
+  async deleteObj<T extends BaseModel>(obj: T) {
+    const coll = this.db().collection(obj.__collection__);
     await coll.deleteOne({ _id: obj._id });
   }
 
-  async deleteQuery(
-    collection: string,
-    query: { [key: string]: any }
-  ): Promise<DeleteWriteOpResultObject> {
+  async deleteQuery(collection: string, query: { [key: string]: any }) {
     const coll = this.db().collection(collection);
     return await coll.deleteMany(query);
   }
@@ -175,88 +101,71 @@ export class DBShard {
     collection: string,
     query: { [key: string]: any },
     update: { [key: string]: any }
-  ): Promise<UpdateWriteOpResult> {
+  ) {
     const coll = this.db().collection(collection);
     return await coll.updateMany(query, update);
   }
 
-  async findAndUpdateObj<T extends AbstractModel>(
+  async findAndUpdateObject<T extends BaseModel>(
     obj: T,
-    update: { [key: string]: any },
-    when: { [key: string]: any } | null = null
-  ): Promise<{ [key: string]: any } | null> {
-    let query: { [key: string]: any } = { _id: obj._id };
+    update: CommonObject,
+    when: Nullable<CommonObject> = null
+  ) {
+    let query: CommonObject = { _id: obj._id };
     if (when) {
       query = {
         ...when,
         ...query,
       };
     }
-    const result = await this.db()
-      .collection(obj.__collection__())
-      .findOneAndUpdate(query, update, { returnOriginal: false });
-    let newData = result.value;
+    const coll = this.db().collection(obj.__collection__);
+    const result = await coll.findOneAndUpdate(query, update, {
+      returnOriginal: false,
+    });
+    let newData: CommonObject = result.value;
     if (newData && this.shardId) {
-      newData['shardId'] = this.shardId;
+      newData['shard_id'] = this.shardId;
     }
     return newData;
   }
 }
 
 class DB {
-  private _meta: DBShard;
-  private _shards: { [key: string]: DBShard } = {};
+  private _meta: Shard;
+  private _shards: { [key: string]: Shard } = {};
   initialized: boolean = false;
 
-  static async create(config: {
-    meta: DBConfig;
-    shards: { [key: string]: DBConfig };
-  }): Promise<DB> {
-    const db = new DB();
-    await db.init(config);
-    return db;
-  }
-
-  async init(
-    config: {
-      meta: DBConfig;
-      shards: { [key: string]: DBConfig };
-    },
-    overrideMongoClient: any = null
-  ): Promise<void> {
-    this._meta = await DBShard.create(config.meta, null, overrideMongoClient);
+  async init(config: DatabaseConfig): Promise<void> {
+    this._meta = await Shard.create(config.meta, null);
     for (const shardId in config.shards) {
-      this._shards[shardId] = await DBShard.create(
+      this._shards[shardId] = await Shard.create(
         config.shards[shardId],
-        shardId,
-        overrideMongoClient
+        shardId
       );
     }
     this.initialized = true;
   }
 
-  getShard(shardId: string): DBShard {
-    if (shardId in this._shards) {
-      return this._shards[shardId];
-    }
-    throw new InvalidShardId(shardId);
-  }
-
-  meta(): DBShard {
+  meta(): Shard {
     if (!this.initialized) {
       throw new Error('DB is not initialized');
     }
     return this._meta;
   }
 
-  shards(): { [key: string]: DBShard } {
+  shards(): { [key: string]: Shard } {
     if (!this.initialized) {
       throw new Error('DB is not initialized');
     }
     return this._shards;
   }
+
+  getShard(shardId: string): Shard {
+    if (shardId in this._shards) {
+      return this._shards[shardId];
+    }
+    throw new InvalidShardId(shardId);
+  }
 }
 
-let db: DB = new DB();
-
-export default db;
+export const db = new DB();

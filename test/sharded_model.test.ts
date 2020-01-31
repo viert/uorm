@@ -1,6 +1,11 @@
-import { db, ShardedModel, StringField, NumberField } from '../src';
+import {
+  ShardedModel,
+  StringField,
+  NumberField,
+  db,
+  ModelCursor,
+} from '../src';
 import { initDatabases } from './util';
-import { Cursor } from 'mongodb';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -45,26 +50,35 @@ describe('sharded model', () => {
   });
 
   it('has a proper collection', () => {
-    let model1 = new TestModel('s1', { field1: 'value1', field2: 'value2' });
-    expect(model1.__collection__()).toEqual('test_model');
+    let model1 = TestModel.make({
+      shard_id: 's1',
+      field1: 'value1',
+      field2: 'value2',
+    });
+    expect(model1.__collection__).toEqual('test_model');
   });
 
   it('saves to proper shard', async () => {
-    let model1 = new TestModel('s1', { field1: 'value1', field2: 'value2' });
+    let model1 = TestModel.make({
+      shard_id: 's1',
+      field1: 'value1',
+      field2: 'value2',
+    });
     await model1.save();
-    let model2 = await TestModel.findOne('s1', { _id: model1._id });
+    let model2 = await TestModel.findOne({ _id: model1._id }, 's1');
     expect(model2).toBeTruthy();
     if (model2) {
       expect(model2._id).toEqual(model1._id);
       expect(model2.shardId).toEqual('s1');
     }
 
-    model2 = await TestModel.findOne('s2', { _id: model1._id });
+    model2 = await TestModel.findOne({ _id: model1._id }, 's2');
     expect(model2).toEqual(null);
   });
 
   it('rejected fields should not be updated', async () => {
-    let model: TestModel | null = new TestModel('s2', {
+    let model: TestModel | null = TestModel.make({
+      shard_id: 's2',
       field1: 'original_value',
       field2: 'mymodel_reject_test',
     });
@@ -72,7 +86,7 @@ describe('sharded model', () => {
 
     const id = model._id;
     await model.update({ field1: 'mymodel_updated' });
-    model = await TestModel.findOne('s2', { _id: id });
+    model = await TestModel.findOne({ _id: id }, 's2');
     expect(model).toBeTruthy();
     if (model !== null) {
       expect(model.field1).toEqual('original_value');
@@ -80,7 +94,8 @@ describe('sharded model', () => {
   });
 
   it('other fields should be updated with update()', async () => {
-    let model: TestModel | null = new TestModel('s3', {
+    let model: TestModel | null = TestModel.make({
+      shard_id: 's3',
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
@@ -90,7 +105,7 @@ describe('sharded model', () => {
     await model.update({ field2: 'mymodel_updated' });
     expect(model.field2).toEqual('mymodel_updated');
 
-    model = await TestModel.findOne('s3', { _id: id });
+    model = await TestModel.findOne({ _id: id }, 's3');
     expect(model).toBeTruthy();
     if (model !== null) {
       expect(model.field2).toEqual('mymodel_updated');
@@ -98,26 +113,29 @@ describe('sharded model', () => {
   });
 
   it('updateMany updates according to query', async () => {
-    let model1: TestModel | null = new TestModel('s4', {
+    let model1: TestModel | null = TestModel.make({
+      shard_id: 's4',
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model1.save();
-    let model2: TestModel | null = new TestModel('s4', {
+    let model2: TestModel | null = TestModel.make({
+      shard_id: 's4',
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model2.save();
-    let model3: TestModel | null = new TestModel('s4', {
+    let model3: TestModel | null = TestModel.make({
+      shard_id: 's4',
       field1: 'do_not_modify',
       field2: 'mymodel_update_test',
     });
     await model3.save();
 
     await TestModel.updateMany(
-      's4',
       { field1: 'original_value' },
-      { $set: { field2: 'mymodel_updated' } }
+      { $set: { field2: 'mymodel_updated' } },
+      's4'
     );
     await Promise.all([model1.reload(), model2.reload(), model3.reload()]);
     expect(model1.field2).toEqual('mymodel_updated');
@@ -126,12 +144,13 @@ describe('sharded model', () => {
   });
 
   it('reload() updates fields', async () => {
-    let model1: TestModel | null = new TestModel('s1', {
+    let model1: TestModel | null = TestModel.make({
+      shard_id: 's1',
       field1: 'original_value',
       field2: 'update_test',
     });
     await model1.save();
-    let model2 = await TestModel.get('s1', model1._id);
+    let model2 = await TestModel.get(model1._id, null, 's1');
     if (model2 === null) {
       fail('model is null');
     }
@@ -142,28 +161,27 @@ describe('sharded model', () => {
   });
 
   it('find() returns a proper cursor', async () => {
-    let cursor = TestModel.find('s1');
-    let model1 = new TestModel('s1', {
+    let model1: TestModel | null = TestModel.make({
+      shard_id: 's1',
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model1.save();
-
-    let model2 = new TestModel('s1', {
+    let model2: TestModel | null = TestModel.make({
+      shard_id: 's1',
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
-
     await model2.save();
-    let model3 = new TestModel('s1', {
+    let model3: TestModel | null = TestModel.make({
+      shard_id: 's1',
       field1: 'do_not_modify',
       field2: 'mymodel_update_test',
     });
-
     await model3.save();
 
-    cursor = TestModel.find('s1');
-    expect(cursor).toBeInstanceOf(Cursor);
+    let cursor = TestModel.find({}, 's1');
+    expect(cursor).toBeInstanceOf(ModelCursor);
     expect(await cursor.count()).toEqual(3);
 
     let count = 0;
@@ -173,9 +191,8 @@ describe('sharded model', () => {
     }
     expect(count).toEqual(3);
 
-    cursor = TestModel.find('s1').skip(2);
+    cursor = TestModel.find({}, 's1').skip(2);
     expect(await cursor.count()).toEqual(3);
-
     count = 0;
     for await (const item of cursor) {
       expect(item).toBeInstanceOf(TestModel);
@@ -183,7 +200,7 @@ describe('sharded model', () => {
     }
     expect(count).toEqual(1);
 
-    cursor = TestModel.find('s1');
+    cursor = TestModel.find({}, 's1');
     expect(await cursor.next()).toBeInstanceOf(TestModel);
 
     await cursor.forEach(item => {

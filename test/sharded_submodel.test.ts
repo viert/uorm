@@ -1,12 +1,12 @@
 import { initDatabases } from './util';
-import { ShardedSubmodel, NumberField, db } from '../src';
-import { ObjectID } from 'bson';
+import { NumberField, db, ShardedSubmodel } from '../src';
+import { ObjectID } from 'mongodb';
 import { WrongSubmodel, MissingSubmodel, SubmodelError } from '../src/errors';
 
 class TestBaseSubmodel extends ShardedSubmodel {
   @NumberField({ defaultValue: 1 }) field1: number;
   @NumberField({ defaultValue: 2 }) field2: number;
-  static _collection = 'submodel1';
+  static __collection__ = 'submodel1';
 }
 
 class Submodel1 extends TestBaseSubmodel {
@@ -24,20 +24,26 @@ TestBaseSubmodel.registerSubmodel('submodel2', Submodel2);
 
 async function createObjects() {
   const values = [1, 2, 3];
-  const objs1 = values.map(v => new Submodel1('s1', { field1: v, field2: v }));
-  const objs2 = values.map(v => new Submodel2('s1', { field1: v, field2: v }));
+  const objs1 = values.map(v =>
+    Submodel1.make({ shard_id: 's2', field1: v, field2: v })
+  );
+  const objs2 = values.map(v =>
+    Submodel2.make({ shard_id: 's2', field1: v, field2: v })
+  );
   await Promise.all(objs1.concat(objs2).map(obj => obj.save()));
   return [objs1, objs2];
 }
 
-describe('storable submodel', () => {
+describe('ShardedSubmodel', () => {
   beforeAll(async done => {
     await initDatabases();
     done();
   });
 
   beforeEach(async done => {
-    await TestBaseSubmodel.destroyAll('s1');
+    for (const shardId in db.shards()) {
+      await TestBaseSubmodel.destroyAll(shardId);
+    }
     done();
   });
 
@@ -57,7 +63,8 @@ describe('storable submodel', () => {
 
   it('wrong input', async () => {
     expect(() => {
-      new Submodel1('s1', {
+      Submodel1.make({
+        shard_id: 's2',
         _id: new ObjectID(),
         field1: 1,
         submodel: 'wrong',
@@ -65,14 +72,16 @@ describe('storable submodel', () => {
     }).toThrow(WrongSubmodel);
 
     expect(() => {
-      new Submodel1('s1', {
+      Submodel1.make({
+        shard_id: 's3',
         _id: new ObjectID(),
         field1: 1,
       });
     }).toThrow(MissingSubmodel);
 
     expect(() => {
-      new Submodel1('s1', {
+      Submodel1.make({
+        shard_id: 's4',
         field1: 1,
         submodel: 'my_submodel',
       });
@@ -80,13 +89,13 @@ describe('storable submodel', () => {
   });
 
   it('has proper submodel field', async () => {
-    const obj = new Submodel1('s1');
+    const obj = Submodel1.make({ shard_id: 's1' });
     expect(obj.submodel).toBeTruthy();
     expect(obj.submodel).toEqual(Submodel1.__submodel__);
     await obj.save();
     await obj.reload();
     expect(obj.submodel).toEqual(Submodel1.__submodel__);
-    const dbObj = await Submodel1.get('s1', obj._id);
+    const dbObj = await Submodel1.get(obj._id, null, 's1');
     if (dbObj === null) {
       fail();
     }
@@ -94,16 +103,14 @@ describe('storable submodel', () => {
   });
 
   it('follows inheritance', () => {
-    expect(TestBaseSubmodel.__collection__()).toEqual(
-      Submodel1.__collection__()
-    );
-    expect(Submodel1_1.__collection__()).toEqual(Submodel1.__collection__());
+    expect(TestBaseSubmodel.__collection__).toEqual(Submodel1.__collection__);
+    expect(Submodel1_1.__collection__).toEqual(Submodel1.__collection__);
     expect(Submodel1_1.__submodel__).toEqual(Submodel1.__submodel__);
   });
 
   it('abstract throws', () => {
     expect(() => {
-      new TestBaseSubmodel('s1');
+      TestBaseSubmodel.make({ shard_id: 's1' });
     }).toThrow(SubmodelError);
 
     expect(() => {
@@ -113,9 +120,9 @@ describe('storable submodel', () => {
 
   it('isolation find', async () => {
     const [objs1, objs2] = await createObjects();
-    const objs1t = await Submodel1.find('s1').toArray();
+    const objs1t = await Submodel1.find({}, 's2').all();
     expect(objs1.length).toEqual(objs1t.length);
-    const objs2t = await Submodel2.find('s1').toArray();
+    const objs2t = await Submodel2.find({}, 's2').all();
     expect(objs2.length).toEqual(objs2t.length);
 
     objs1t.forEach(obj => {
@@ -124,7 +131,15 @@ describe('storable submodel', () => {
     objs2t.forEach(obj => {
       expect(obj.submodel).toEqual(Submodel2.__submodel__);
     });
-    const objs3t = await TestBaseSubmodel.find('s1').toArray();
+    const objs3t = await TestBaseSubmodel.find({}, 's2').all();
     expect(objs3t.length).toEqual(objs1.length + objs2.length);
+    objs3t.forEach(obj => {
+      if (obj.submodel === Submodel1.__submodel__) {
+        expect(obj).toBeInstanceOf(Submodel1);
+      }
+      if (obj.submodel === Submodel2.__submodel__) {
+        expect(obj).toBeInstanceOf(Submodel2);
+      }
+    });
   });
 });

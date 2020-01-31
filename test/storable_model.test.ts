@@ -1,14 +1,14 @@
+import { initDatabases } from './util';
 import {
+  db,
   StorableModel,
-  StringField,
   AnyField,
   ArrayField,
-  NumberField,
   ObjectField,
-  db,
+  StringField,
+  NumberField,
+  ModelCursor,
 } from '../src';
-import { Cursor } from 'mongodb';
-import { initDatabases } from './util';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -25,7 +25,7 @@ class TestModel extends StorableModel {
   @NumberField({ defaultValue: callable }) callable_default_field: number;
 }
 
-describe('storable model', () => {
+describe('StorableModel', () => {
   beforeAll(async done => {
     await initDatabases();
     done();
@@ -50,13 +50,8 @@ describe('storable model', () => {
     done();
   });
 
-  it('has a proper collection name', () => {
-    const model = new TestModel({ field2: 'mymodel' });
-    expect(model.__collection__()).toEqual('test_model');
-  });
-
   it('once saved let be acquired', async () => {
-    const model = new TestModel({ field2: 'mymodel' });
+    const model = TestModel.make({ field2: 'mymodel' });
     await model.save();
     const model2 = await TestModel.findOne({ field2: 'mymodel' });
     expect(model2).toBeTruthy();
@@ -66,7 +61,7 @@ describe('storable model', () => {
   });
 
   it('update() should not affect not updated fields', async () => {
-    let model = new TestModel({
+    let model = TestModel.make({
       field1: 'orig1',
       field2: 'orig2',
       field3: 'orig3',
@@ -82,7 +77,7 @@ describe('storable model', () => {
   });
 
   it('rejected fields should not be updated', async () => {
-    let model: TestModel | null = new TestModel({
+    let model: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_reject_test',
     });
@@ -98,7 +93,7 @@ describe('storable model', () => {
   });
 
   it('other fields should be updated with update()', async () => {
-    let model: TestModel | null = new TestModel({
+    let model: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
@@ -116,7 +111,7 @@ describe('storable model', () => {
   });
 
   it('dbUpdate updates fields', async () => {
-    let model = new TestModel({
+    let model = TestModel.make({
       field1: 'orig1',
       field2: 'orig2',
       field3: 'orig3',
@@ -136,17 +131,17 @@ describe('storable model', () => {
   });
 
   it('updateMany updates according to query', async () => {
-    let model1: TestModel | null = new TestModel({
+    let model1: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model1.save();
-    let model2: TestModel | null = new TestModel({
+    let model2: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model2.save();
-    let model3: TestModel | null = new TestModel({
+    let model3: TestModel | null = TestModel.make({
       field1: 'do_not_modify',
       field2: 'mymodel_update_test',
     });
@@ -163,7 +158,7 @@ describe('storable model', () => {
   });
 
   it('reload() updates fields', async () => {
-    let model1: TestModel | null = new TestModel({
+    let model1: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'update_test',
     });
@@ -179,24 +174,24 @@ describe('storable model', () => {
   });
 
   it('find() returns a proper cursor', async () => {
-    let model1: TestModel | null = new TestModel({
+    let model1: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model1.save();
-    let model2: TestModel | null = new TestModel({
+    let model2: TestModel | null = TestModel.make({
       field1: 'original_value',
       field2: 'mymodel_update_test',
     });
     await model2.save();
-    let model3: TestModel | null = new TestModel({
+    let model3: TestModel | null = TestModel.make({
       field1: 'do_not_modify',
       field2: 'mymodel_update_test',
     });
     await model3.save();
 
     let cursor = TestModel.find();
-    expect(cursor).toBeInstanceOf(Cursor);
+    expect(cursor).toBeInstanceOf(ModelCursor);
     expect(await cursor.count()).toEqual(3);
 
     let count = 0;
@@ -208,7 +203,6 @@ describe('storable model', () => {
 
     cursor = TestModel.find().skip(2);
     expect(await cursor.count()).toEqual(3);
-
     count = 0;
     for await (const item of cursor) {
       expect(item).toBeInstanceOf(TestModel);
@@ -223,13 +217,14 @@ describe('storable model', () => {
       expect(item).toBeInstanceOf(TestModel);
     });
   });
-  it('fields explicitly set to null in ctor are affected by model defaults', async () => {
+
+  it('fields explicitly set to null in create are affected by model defaults', async () => {
     class CModel extends StorableModel {
       @AnyField() f1: any;
       @AnyField() f2: any;
       @AnyField() f3: any;
       @AnyField() f4: any;
-      static _collection = 'cmodel';
+      static __collection__ = 'cmodel';
     }
 
     class DModel extends StorableModel {
@@ -239,10 +234,15 @@ describe('storable model', () => {
       @ObjectField({ defaultValue: { hello: 'world' } }) f4: {
         [key: string]: any;
       };
-      static _collection = 'cmodel';
+      static __collection__ = 'cmodel';
     }
 
-    let model = new CModel({ f1: null, f2: null, f3: null, f4: null });
+    let model = CModel.make({
+      f1: null,
+      f2: null,
+      f3: null,
+      f4: null,
+    });
     await model.save();
 
     let model2 = await DModel.findOne({ _id: model._id });
@@ -257,5 +257,18 @@ describe('storable model', () => {
 
     await model2.update({ f1: 5 });
     expect(model2.f1).toEqual(5);
+  });
+
+  it('index restrictions', async () => {
+    class IndexedModel extends StorableModel {
+      @StringField() username: string;
+      static __indexes__ = [{ index: 'username', options: { unique: true } }];
+    }
+    await IndexedModel.ensureIndexes();
+
+    const model = IndexedModel.make({ username: 'paul' });
+    await model.save();
+    const model2 = IndexedModel.make({ username: 'paul' });
+    expect(model2.save()).rejects.toThrow(/duplicate key error/);
   });
 });

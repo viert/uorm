@@ -1,11 +1,7 @@
-export class InvalidFieldType extends Error {
-  name = 'InvalidFieldType';
-}
-
 export class FieldRequired extends Error {
   name = 'FieldRequired';
   constructor(fieldName: string) {
-    super(`Field ${fieldName} can not be empty`);
+    super(`Field "${fieldName}" can not be empty`);
   }
 }
 
@@ -35,6 +31,10 @@ export class MissingShardId extends Error {
   constructor() {
     super('shard_id is missing from ShardedModel');
   }
+}
+
+export class WrongModelType extends Error {
+  name = 'WrongModelType';
 }
 
 export class WrongSubmodel extends Error {

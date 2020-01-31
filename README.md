@@ -1,4 +1,4 @@
-# uORM
+# uORM TypeScript MongoDB ORM
 
 This is a port of python [uEngine](https://github.com/viert/uengine) MongoDB ORM library
 
@@ -7,16 +7,16 @@ This is a port of python [uEngine](https://github.com/viert/uengine) MongoDB ORM
 Declare models:
 
 ```typescript
-import { StorableModel, Field } from 'uorm';
+import { StorableModel, StringField, DatetimeField } from 'uorm';
 
 class User extends StorableModel {
   _collection = 'user';
 
-  @Field({ required: true }) username: string;
-  @Field() first_name: string;
-  @Field() last_name: string;
-  @Field({ defaultValue: Date }) created_at: Date;
-  @Field() description: string;
+  @StringField({ required: true }) username: string;
+  @StringField() first_name: string;
+  @StringField() last_name: string;
+  @DatetimeField({ defaultValue: Date }) created_at: Date;
+  @StringField() description: string;
 
   get fullname() {
     return `${this.first_name} ${this.last_name}`;
@@ -27,9 +27,9 @@ class User extends StorableModel {
 Initialize database connections
 
 ```typescript
-import { db, DBConfig } from 'uorm';
+import { db, DatabaseConfig } from 'uorm';
 
-const conf: DBConfig = {
+const conf: DatabaseConfig = {
   meta: {
     uri: 'mongodb://localhost',
     dbname: 'mydb',
@@ -93,6 +93,8 @@ However you might want to use other models in computations, i.e. you need to wai
 For your convenience there's an async method `async asyncObject(fields)` which handles this (remember that you have to `await` it). To expose your async computed property, use `AsyncComputed` decorator:
 
 ```typescript
+import { AsyncComputed, StorableModel } from 'uorm';
+
 class Token extends StorableModel {
   @Field({ required: true }) token: string;
   @Field({ required: true }) owner_id: ObjectID;
@@ -105,4 +107,4 @@ class Token extends StorableModel {
 }
 ```
 
-Notice that calling asyncObject without arguments (like in the example above) is quite a useless thing: by default `fields` list equals to everything declared with `Field` decorator, i.e. there's nothing async there by default, thus, syncronous `toObject()` would suffice.
+Notice that calling asyncObject without arguments (like in the example above) is quite a useless thing: by default `fields` list equals to everything declared with `<Type>Field` decorator, i.e. there's nothing async there by default, thus, syncronous `toObject()` would suffice.
