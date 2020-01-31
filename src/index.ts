@@ -1,3 +1,4 @@
+import 'regenerator-runtime/runtime';
 export { db, Shard, ShardConfig, DatabaseConfig } from './db';
 export {
   BaseModel,
