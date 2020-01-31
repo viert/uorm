@@ -28,6 +28,11 @@ export class ModelCursor<T extends typeof BaseModel> {
     return this;
   }
 
+  sort(keyOrList: string | object | object[], direction?: number) {
+    this._cursor.sort(keyOrList, direction);
+    return this;
+  }
+
   limit(value: number) {
     this._cursor.limit(value);
     return this;
@@ -38,7 +43,7 @@ export class ModelCursor<T extends typeof BaseModel> {
     return results.map(this.mapper);
   }
 
-  async *[Symbol.asyncIterator]() {
+  async *[Symbol.asyncIterator](): AsyncIterable<InstanceType<T>> {
     for await (const item of this._cursor) {
       yield this.mapper(item);
     }

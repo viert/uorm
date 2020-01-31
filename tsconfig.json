@@ -1,9 +1,9 @@
 {
   "include": ["src", "types", "test"],
   "compilerOptions": {
-    "target": "esnext",
+    "target": "es2018",
     "module": "esnext",
-    "lib": ["dom", "esnext"],
+    "lib": ["dom", "es2018"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
