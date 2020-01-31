@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "es2018",
     "module": "esnext",
-    "lib": ["dom", "es2018"],
+    "lib": ["es2018", "es2018.asynciterable"],
     "importHelpers": true,
     "declaration": true,
     "sourceMap": true,
