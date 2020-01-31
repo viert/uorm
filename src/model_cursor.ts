@@ -43,7 +43,7 @@ export class ModelCursor<T extends typeof BaseModel> {
     return results.map(this.mapper);
   }
 
-  async *[Symbol.asyncIterator](): AsyncIterable<InstanceType<T>> {
+  async *[Symbol.asyncIterator](): AsyncGenerator<InstanceType<T>> {
     for await (const item of this._cursor) {
       yield this.mapper(item);
     }
