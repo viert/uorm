@@ -42,7 +42,8 @@ describe('ShardedSubmodel', () => {
 
   beforeEach(async done => {
     for (const shardId in db.shards()) {
-      await TestBaseSubmodel.destroyAll(shardId);
+      if (db.getShard(shardId).isOpen())
+        await TestBaseSubmodel.destroyAll(shardId);
     }
     done();
   });

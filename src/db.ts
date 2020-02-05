@@ -1,6 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
 import { BaseModel } from './model';
-import { InvalidShardId } from './errors';
+import { InvalidShardId, ShardIsReadOnly } from './errors';
 import { CommonObject, Nullable } from './util';
 import { ModelCursor } from './model_cursor';
 
@@ -8,6 +8,7 @@ export type ShardConfig = {
   uri: string;
   dbname: string;
   options?: { [key: string]: any };
+  open?: boolean;
 };
 
 export type UormOptions = {
@@ -26,6 +27,7 @@ export type Query = CommonObject;
 
 export class Shard {
   private database: Nullable<Db> = null;
+  private open: boolean;
   private constructor(
     private config: ShardConfig,
     private uormOptions: UormOptions,
@@ -33,7 +35,8 @@ export class Shard {
   ) {}
 
   async init() {
-    let { uri, dbname, options = {} } = this.config;
+    let { uri, dbname, options = {}, open = true } = this.config;
+    this.open = open;
     return new Promise(resolve => {
       MongoClient.connect(uri, options).then(client => {
         this.database = client.db(dbname);
@@ -59,6 +62,10 @@ export class Shard {
     return this.database;
   }
 
+  isOpen() {
+    return this.open;
+  }
+
   async getObject<T extends typeof BaseModel>(
     collection: string,
     query: Query,
@@ -66,7 +73,8 @@ export class Shard {
   ) {
     if (this.uormOptions.logQueries) {
       console.log(
-        `Shard[${this.shardId || 'meta'}].getObject(${JSON.stringify(query)})`
+        `Shard[${this.shardId ||
+          'meta'}].${collection}.getObject(${JSON.stringify(query)})`
       );
     }
     const coll = this.db().collection(collection);
@@ -87,9 +95,8 @@ export class Shard {
   ) {
     if (this.uormOptions.logQueries) {
       console.log(
-        `Shard[${this.shardId || 'meta'}].getObjectsCursor(${JSON.stringify(
-          query
-        )})`
+        `Shard[${this.shardId ||
+          'meta'}].${collection}.getObjectsCursor(${JSON.stringify(query)})`
       );
     }
     const coll = this.db().collection(collection);
@@ -98,6 +105,9 @@ export class Shard {
   }
 
   async saveObj<T extends BaseModel>(obj: T) {
+    if (!this.open) {
+      throw new ShardIsReadOnly(this.shardId || 'meta');
+    }
     const coll = this.db().collection(obj.__collection__);
     let data = obj.toObject(null, true);
     if (obj.isNew()) {
@@ -110,14 +120,21 @@ export class Shard {
   }
 
   async deleteObj<T extends BaseModel>(obj: T) {
+    if (!this.open) {
+      throw new ShardIsReadOnly(this.shardId || 'meta');
+    }
     const coll = this.db().collection(obj.__collection__);
     await coll.deleteOne({ _id: obj._id });
   }
 
   async deleteQuery(collection: string, query: { [key: string]: any }) {
+    if (!this.open) {
+      throw new ShardIsReadOnly(this.shardId || 'meta');
+    }
     if (this.uormOptions.logQueries) {
       console.log(
-        `Shard[${this.shardId || 'meta'}].deleteQuery(${JSON.stringify(query)})`
+        `Shard[${this.shardId ||
+          'meta'}].${collection}.deleteQuery(${JSON.stringify(query)})`
       );
     }
     const coll = this.db().collection(collection);
@@ -129,9 +146,13 @@ export class Shard {
     query: { [key: string]: any },
     update: { [key: string]: any }
   ) {
+    if (!this.open) {
+      throw new ShardIsReadOnly(this.shardId || 'meta');
+    }
     if (this.uormOptions.logQueries) {
       console.log(
-        `Shard[${this.shardId || 'meta'}].updateQuery(${JSON.stringify(
+        `Shard[${this.shardId ||
+          'meta'}].${collection}.updateQuery(${JSON.stringify(
           query
         )}, ${JSON.stringify(update)})`
       );
@@ -145,6 +166,9 @@ export class Shard {
     update: CommonObject,
     when: Nullable<CommonObject> = null
   ) {
+    if (!this.open) {
+      throw new ShardIsReadOnly(this.shardId || 'meta');
+    }
     let query: CommonObject = { _id: obj._id };
     if (when) {
       query = {
@@ -154,9 +178,11 @@ export class Shard {
     }
     if (this.uormOptions.logQueries) {
       console.log(
-        `Shard[${this.shardId || 'meta'}].findAndUpdateObject(${JSON.stringify(
-          query
-        )}, ${JSON.stringify(update)})`
+        `Shard[${this.shardId || 'meta'}].${
+          obj.__collection__
+        }.findAndUpdateObject(${JSON.stringify(query)}, ${JSON.stringify(
+          update
+        )})`
       );
     }
     const coll = this.db().collection(obj.__collection__);

@@ -41,6 +41,12 @@ export async function initDatabases() {
         options,
         dbname: randomString(),
       },
+      ro: {
+        uri,
+        options,
+        dbname: randomString(),
+        open: false,
+      },
     },
   });
 }

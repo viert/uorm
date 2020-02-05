@@ -6,6 +6,7 @@ import {
   ModelCursor,
 } from '../src';
 import { initDatabases } from './util';
+import { ShardIsReadOnly } from '../src/errors';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -44,7 +45,7 @@ describe('sharded model', () => {
 
   beforeEach(async done => {
     for (const shardId in db.shards()) {
-      await TestModel.destroyAll(shardId);
+      if (db.getShard(shardId).isOpen()) await TestModel.destroyAll(shardId);
     }
     done();
   });
@@ -206,5 +207,14 @@ describe('sharded model', () => {
     await cursor.forEach(item => {
       expect(item).toBeInstanceOf(TestModel);
     });
+  });
+
+  it('fails to write to closed shard', async () => {
+    let model1: TestModel | null = TestModel.make({
+      shard_id: 'ro',
+      field1: 'original_value',
+      field2: 'mymodel_update_test',
+    });
+    expect(model1.save()).rejects.toThrow(ShardIsReadOnly);
   });
 });

@@ -19,6 +19,13 @@ export class InvalidShardId extends Error {
   }
 }
 
+export class ShardIsReadOnly extends Error {
+  name = 'ShardIsReadOnly';
+  constructor(shardId: string) {
+    super(`Attempt to write to a closed shard "${shardId}"`);
+  }
+}
+
 export class ModelDestroyed extends Error {
   name = 'ModelDestroyed';
   constructor() {
