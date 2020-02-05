@@ -1,6 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
 import { BaseModel } from './model';
-import { InvalidShardId, ShardIsReadOnly } from './errors';
+import { InvalidShardId, ShardIsReadOnly, DatabaseIsReadOnly } from './errors';
 import { CommonObject, Nullable } from './util';
 import { ModelCursor } from './model_cursor';
 
@@ -227,6 +227,29 @@ class DB {
       throw new Error('DB is not initialized');
     }
     return this._shards;
+  }
+
+  RWShards(): { [key: string]: Shard } {
+    if (!this.initialized) {
+      throw new Error('DB is not initialized');
+    }
+    let shards: { [key: string]: Shard } = {};
+    for (const shardId in this._shards) {
+      if (this._shards[shardId].isOpen()) {
+        shards[shardId] = this._shards[shardId];
+      }
+    }
+    return shards;
+  }
+
+  randomRWShard(): Shard {
+    const shards = this.RWShards();
+    const ids = Object.keys(shards);
+    if (!ids.length) {
+      throw new DatabaseIsReadOnly('No open shards found');
+    }
+    const idx = Math.floor(Math.random() * ids.length);
+    return shards[ids[idx]];
   }
 
   getShard(shardId: string): Shard {

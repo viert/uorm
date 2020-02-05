@@ -26,6 +26,10 @@ export class ShardIsReadOnly extends Error {
   }
 }
 
+export class DatabaseIsReadOnly extends Error {
+  name = 'DatabaseIsReadOnly';
+}
+
 export class ModelDestroyed extends Error {
   name = 'ModelDestroyed';
   constructor() {
