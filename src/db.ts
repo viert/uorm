@@ -242,14 +242,14 @@ class DB {
     return shards;
   }
 
-  randomRWShard(): Shard {
+  getRandomRWShardId(): string {
     const shards = this.RWShards();
     const ids = Object.keys(shards);
     if (!ids.length) {
       throw new DatabaseIsReadOnly('No open shards found');
     }
     const idx = Math.floor(Math.random() * ids.length);
-    return shards[ids[idx]];
+    return ids[idx];
   }
 
   getShard(shardId: string): Shard {
