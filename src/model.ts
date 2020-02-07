@@ -34,6 +34,7 @@ export class BaseModel {
   static __indexes__: IndexDescriptor[] = [];
   static __submodel__: Nullable<string> = null;
   static readonly isSubmodel: boolean = false;
+  static readonly isSharded: boolean = false;
 
   readonly __collection__: string;
   readonly __fields__: string[];
@@ -46,6 +47,7 @@ export class BaseModel {
   readonly __async_computed__: string[];
   readonly __submodel__: Nullable<string>;
   readonly isSubmodel: boolean;
+  readonly isSharded: boolean;
 
   protected static getModelCollectionName(): string {
     const ctor = this as typeof BaseModel;
@@ -75,6 +77,7 @@ export class BaseModel {
     this.__async_computed__ = ctor.__async_computed__;
     this.__submodel__ = ctor.__submodel__;
     this.isSubmodel = ctor.isSubmodel;
+    this.isSharded = ctor.isSharded;
   }
 
   protected __getField(key: string): any {
@@ -159,7 +162,8 @@ export class BaseModel {
         }
       }
     }
-    const r = new this(data.shard_id); // data.shard_id may be null for not sharded models
+    const shardId = this.isSharded ? data.shard_id : null;
+    const r = new this(shardId); // data.shard_id may not be null for non-sharded models
     r._fill(data);
     r._checkSubmodel();
     return r as InstanceType<T>;
@@ -498,6 +502,7 @@ export class StorableModel extends BaseModel {
 }
 
 export class ShardedModel extends StorableModel {
+  static isSharded = true;
   protected static getShard(shardId?: Nullable<string>): Shard {
     if (!shardId) {
       throw new WrongModelType(

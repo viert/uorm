@@ -1,5 +1,5 @@
 import { initDatabases } from './util';
-import { StorableSubmodel, NumberField, db } from '../src';
+import { StorableSubmodel, NumberField, StringField, db } from '../src';
 import { ObjectID } from 'mongodb';
 import { WrongSubmodel, MissingSubmodel, SubmodelError } from '../src/errors';
 
@@ -132,5 +132,27 @@ describe('StorableSubmodel', () => {
         expect(obj).toBeInstanceOf(Submodel2);
       }
     });
+  });
+
+  it('works with shard_id defined as a model field', async () => {
+    class MetaModel extends TestBaseSubmodel {
+      static __submodel__ = 'meta';
+      @StringField({ required: true }) shard_id: string;
+      @StringField({ defaultValue: 'value' }) field: string;
+    }
+
+    const meta = MetaModel.make({ shard_id: 's1' });
+    await meta.save();
+
+    const meta2 = await MetaModel.findOne({ field: 'value' });
+    expect(meta2).toBeTruthy();
+    expect(meta2!.shard_id).toEqual('s1');
+    expect(meta2!.shardId).toEqual(null);
+    expect(meta._id).toEqual(meta2!._id);
+
+    await meta2!.update({ field: 'value_updated' });
+    await meta.reload();
+    expect(meta2!.field).toEqual('value_updated');
+    expect(meta.field).toEqual(meta2!.field);
   });
 });

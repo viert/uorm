@@ -271,4 +271,25 @@ describe('StorableModel', () => {
     const model2 = IndexedModel.make({ username: 'paul' });
     expect(model2.save()).rejects.toThrow(/duplicate key error/);
   });
+
+  it('works with shard_id defined as a model field', async () => {
+    class MetaModel extends StorableModel {
+      @StringField({ required: true }) shard_id: string;
+      @StringField({ defaultValue: 'value' }) field: string;
+    }
+
+    const meta = MetaModel.make({ shard_id: 's1' });
+    await meta.save();
+
+    const meta2 = await MetaModel.findOne({ field: 'value' });
+    expect(meta2).toBeTruthy();
+    expect(meta2!.shard_id).toEqual('s1');
+    expect(meta2!.shardId).toEqual(null);
+    expect(meta._id).toEqual(meta2!._id);
+
+    await meta2!.update({ field: 'value_updated' });
+    await meta.reload();
+    expect(meta2!.field).toEqual('value_updated');
+    expect(meta.field).toEqual(meta2!.field);
+  });
 });

@@ -217,4 +217,13 @@ describe('sharded model', () => {
     });
     expect(model1.save()).rejects.toThrow(ShardIsReadOnly);
   });
+
+  it('fails if shard_id field is defined', async () => {
+    expect(() => {
+      class FailedModel extends ShardedModel {
+        @StringField() shard_id: string;
+      }
+      FailedModel.make({ shard_id: 's1' });
+    }).toThrowError(/shard_id/);
+  });
 });

@@ -1,5 +1,5 @@
 import { initDatabases } from './util';
-import { NumberField, db, ShardedSubmodel } from '../src';
+import { NumberField, StringField, db, ShardedSubmodel } from '../src';
 import { ObjectID } from 'mongodb';
 import { WrongSubmodel, MissingSubmodel, SubmodelError } from '../src/errors';
 
@@ -142,5 +142,15 @@ describe('ShardedSubmodel', () => {
         expect(obj).toBeInstanceOf(Submodel2);
       }
     });
+  });
+
+  it('fails if shard_id field is defined', async () => {
+    expect(() => {
+      class FailedModel extends TestBaseSubmodel {
+        static __submodel__ = 'failed';
+        @StringField() shard_id: string;
+      }
+      FailedModel.make({ shard_id: 's1' });
+    }).toThrowError(/shard_id/);
   });
 });

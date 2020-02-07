@@ -33,9 +33,15 @@ function setupField(
     let ctor = target.constructor;
     if (!('__fields__' in ctor)) {
       throw new Error(
-        '@...Field decorators can only be used with AbstractModel subclasses'
+        '@...Field decorators can only be used with BaseModel subclasses'
       );
     }
+    if (ctor.isSharded && propertyName === 'shard_id') {
+      throw new Error(
+        "'shard_id' name is reserved for sharded models so can't be used as a field name"
+      );
+    }
+
     ctor.__fields__ = [...ctor.__fields__, propertyName];
     ctor.__field_types__ = {
       ...ctor.__field_types__,
