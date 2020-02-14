@@ -35,3 +35,21 @@ export function SaveRequired<T extends BaseModel>(
     return original.apply(this, args);
   };
 }
+
+const primitives = {
+  string: true,
+  number: true,
+  boolean: true,
+};
+
+export function deepcopy(obj: any): any {
+  if (typeof obj in primitives) return obj;
+  if (obj instanceof Array) return obj.map(deepcopy);
+
+  let nobj: CommonObject = {};
+  for (const prop in obj) {
+    nobj[prop] = deepcopy(obj[prop]);
+  }
+
+  return nobj;
+}

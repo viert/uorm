@@ -1,7 +1,7 @@
 import { ObjectID, Cursor } from 'mongodb';
 import { Shard, db } from './db';
 import { ObjectIdField, FieldType, StringField } from './fields';
-import { snakeCase, CommonObject, Nullable } from './util';
+import { snakeCase, CommonObject, Nullable, deepcopy } from './util';
 import { validateField } from './validator';
 import {
   WrongModelType,
@@ -48,6 +48,7 @@ export class BaseModel {
   readonly __submodel__: Nullable<string>;
   readonly isSubmodel: boolean;
   readonly isSharded: boolean;
+  _initialState: CommonObject;
 
   protected static getModelCollectionName(): string {
     const ctor = this as typeof BaseModel;
@@ -121,6 +122,11 @@ export class BaseModel {
       }
       this.__setField(field, calculatedValue);
     }
+    this._setInitialState();
+  }
+
+  protected _setInitialState() {
+    this._initialState = deepcopy(this.toObject());
   }
 
   static make<T extends typeof BaseModel>(
@@ -282,6 +288,7 @@ export class BaseModel {
       await this._before_save();
     }
     await this._save_to_db();
+    this._setInitialState();
     if (!skipCallback) {
       await this._after_save(isNew);
     }

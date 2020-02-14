@@ -9,6 +9,7 @@ import {
   NumberField,
   ModelCursor,
 } from '../src';
+import { CommonObject } from '../src/util';
 
 const DEFAULT_CALLABLE_VALUE: number = 4;
 
@@ -291,5 +292,35 @@ describe('StorableModel', () => {
     await meta.reload();
     expect(meta2!.field).toEqual('value_updated');
     expect(meta.field).toEqual(meta2!.field);
+  });
+
+  it('initial state should be independent of the model', async () => {
+    class MyModel extends StorableModel {
+      @StringField() s: string;
+      @ArrayField() a: string[];
+      @ObjectField() o: CommonObject;
+    }
+
+    const m = MyModel.make({
+      s: 'orig',
+      a: ['a', 'b', 'c'],
+      o: { deep: { nested: { structure: [1, 2, 3] } } },
+    });
+
+    m.s = 'updated';
+    m.a.push('d');
+    m.o.deep.newfield = 'newvalue';
+    m.o.deep.nested.structure.push(4);
+
+    expect(m._initialState['s']).toEqual('orig');
+    expect(m._initialState['a']).toEqual(['a', 'b', 'c']);
+    expect(m._initialState['o'].deep.newfield).toBeUndefined();
+    expect(m._initialState['o'].deep.nested.structure).toEqual([1, 2, 3]);
+    await m.save();
+
+    expect(m._initialState['s']).toEqual('updated');
+    expect(m._initialState['a']).toEqual(['a', 'b', 'c', 'd']);
+    expect(m._initialState['o'].deep.newfield).toEqual('newvalue');
+    expect(m._initialState['o'].deep.nested.structure).toEqual([1, 2, 3, 4]);
   });
 });
