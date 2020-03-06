@@ -18,5 +18,21 @@ export {
   DatetimeField,
   AsyncComputed,
 } from './fields';
+export {
+  FieldRequired,
+  ModelDestroyed,
+  ModelSaveRequired,
+  InvalidShardId,
+  ShardIsReadOnly,
+  DatabaseIsReadOnly,
+  MissingShardId,
+  WrongModelType,
+  TypeError,
+  SubmodelError,
+  WrongSubmodel,
+  MissingSubmodel,
+  UnknownSubmodel,
+  ValidationError,
+} from './errors';
 export { ModelCursor } from './model_cursor';
 export { SaveRequired } from './util';
