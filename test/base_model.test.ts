@@ -3,6 +3,7 @@ import {
   StringField,
   BooleanField,
   FieldType,
+  NumberField,
   AsyncComputed,
 } from '../src/fields';
 import { SaveRequired } from '../src/util';
@@ -15,6 +16,7 @@ class User extends BaseModel {
   @BooleanField({ restricted: true, rejected: true, defaultValue: false })
   supervisor: boolean;
   @StringField({ autoTrim: true }) trimmed: string;
+  @NumberField({ defaultValue: () => 42 }) default_response: number;
 }
 
 describe('BaseModel tests', () => {
@@ -62,17 +64,26 @@ describe('BaseModel tests', () => {
   it('callable defaults produce values', () => {
     class CallableModel extends BaseModel {
       @StringField({ defaultValue: () => 'value' }) field: string;
+      @NumberField({
+        defaultValue: () => {
+          return 134;
+        },
+      })
+      field2: number;
     }
     const model = CallableModel.make();
     expect(model.field).toEqual('value');
+    expect(model.field2).toEqual(134);
   });
 
   it('defaults cover explicitly nulled values', () => {
     let model = User.make({
       username: 'paul',
       department: null,
+      default_response: null,
     });
     expect(model.department).toEqual('IT');
+    expect(model.default_response).toEqual(42);
   });
 
   it('type validation works', () => {
