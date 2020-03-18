@@ -11,8 +11,16 @@ export type ShardConfig = {
   open?: boolean;
 };
 
+export interface Logger {
+  debug: (message: string, ...meta: any[]) => void;
+  info: (message: string, ...meta: any[]) => void;
+  warn: (message: string, ...meta: any[]) => void;
+  error: (message: string, ...meta: any[]) => void;
+}
+
 export type UormOptions = {
   logQueries: boolean;
+  logger?: Nullable<Logger>;
 };
 
 export type DatabaseConfig = {
@@ -28,11 +36,19 @@ export type Query = CommonObject;
 export class Shard {
   private database: Nullable<Db> = null;
   private open: boolean;
+  private logger: Nullable<Logger>;
+
   private constructor(
     private config: ShardConfig,
     private uormOptions: UormOptions,
     private shardId: Nullable<string>
-  ) {}
+  ) {
+    if (uormOptions && uormOptions.logger) {
+      this.logger = uormOptions.logger;
+    } else {
+      this.logger = null;
+    }
+  }
 
   async init() {
     let { uri, dbname, options = {}, open = true } = this.config;
@@ -72,10 +88,10 @@ export class Shard {
     ctor: T
   ) {
     if (this.uormOptions.logQueries) {
-      console.log(
-        `Shard[${this.shardId ||
-          'meta'}].${collection}.getObject(${JSON.stringify(query)})`
-      );
+      const msg = `Shard[${this.shardId ||
+        'meta'}].${collection}.getObject(${JSON.stringify(query)})`;
+      if (this.logger) this.logger.debug(msg);
+      else console.log(msg);
     }
     const coll = this.db().collection(collection);
     const obj = await coll.findOne(query);
@@ -94,10 +110,10 @@ export class Shard {
     ctor: T
   ) {
     if (this.uormOptions.logQueries) {
-      console.log(
-        `Shard[${this.shardId ||
-          'meta'}].${collection}.getObjectsCursor(${JSON.stringify(query)})`
-      );
+      const msg = `Shard[${this.shardId ||
+        'meta'}].${collection}.getObjectsCursor(${JSON.stringify(query)})`;
+      if (this.logger) this.logger.debug(msg);
+      else console.log(msg);
     }
     const coll = this.db().collection(collection);
     const mongoCursor = coll.find(query);
@@ -132,10 +148,10 @@ export class Shard {
       throw new ShardIsReadOnly(this.shardId || 'meta');
     }
     if (this.uormOptions.logQueries) {
-      console.log(
-        `Shard[${this.shardId ||
-          'meta'}].${collection}.deleteQuery(${JSON.stringify(query)})`
-      );
+      const msg = `Shard[${this.shardId ||
+        'meta'}].${collection}.deleteQuery(${JSON.stringify(query)})`;
+      if (this.logger) this.logger.debug(msg);
+      else console.log(msg);
     }
     const coll = this.db().collection(collection);
     return await coll.deleteMany(query);
@@ -150,12 +166,12 @@ export class Shard {
       throw new ShardIsReadOnly(this.shardId || 'meta');
     }
     if (this.uormOptions.logQueries) {
-      console.log(
-        `Shard[${this.shardId ||
-          'meta'}].${collection}.updateQuery(${JSON.stringify(
-          query
-        )}, ${JSON.stringify(update)})`
-      );
+      const msg = `Shard[${this.shardId ||
+        'meta'}].${collection}.updateQuery(${JSON.stringify(
+        query
+      )}, ${JSON.stringify(update)})`;
+      if (this.logger) this.logger.debug(msg);
+      else console.log(msg);
     }
     const coll = this.db().collection(collection);
     return await coll.updateMany(query, update);
@@ -177,13 +193,13 @@ export class Shard {
       };
     }
     if (this.uormOptions.logQueries) {
-      console.log(
-        `Shard[${this.shardId || 'meta'}].${
-          obj.__collection__
-        }.findAndUpdateObject(${JSON.stringify(query)}, ${JSON.stringify(
-          update
-        )})`
-      );
+      const msg = `Shard[${this.shardId || 'meta'}].${
+        obj.__collection__
+      }.findAndUpdateObject(${JSON.stringify(query)}, ${JSON.stringify(
+        update
+      )})`;
+      if (this.logger) this.logger.debug(msg);
+      else console.log(msg);
     }
     const coll = this.db().collection(obj.__collection__);
     const result = await coll.findOneAndUpdate(query, update, {
