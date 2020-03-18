@@ -10,6 +10,12 @@ import { SaveRequired } from '../src/util';
 import { ObjectID } from 'mongodb';
 import { ValidationError, ModelSaveRequired } from '../src/errors';
 
+const CALLABLE_VALUE = 483;
+
+function callable() {
+  return CALLABLE_VALUE;
+}
+
 class User extends BaseModel {
   @StringField({ required: true }) username: string;
   @StringField({ defaultValue: 'IT' }) department: string;
@@ -70,10 +76,12 @@ describe('BaseModel tests', () => {
         },
       })
       field2: number;
+      @NumberField({ defaultValue: callable }) field3: number;
     }
     const model = CallableModel.make();
     expect(model.field).toEqual('value');
     expect(model.field2).toEqual(134);
+    expect(model.field3).toEqual(CALLABLE_VALUE);
   });
 
   it('defaults cover explicitly nulled values', () => {
@@ -180,5 +188,27 @@ describe('BaseModel tests', () => {
     expect(obj.first_name).toEqual('Paul');
     expect(obj.last_name).toEqual('Smith');
     expect(obj.full_name).toEqual('Paul Smith');
+  });
+
+  it('async computed properties convert BaseModels to Objects', async () => {
+    class AsyncReferenced extends BaseModel {
+      @StringField({ required: true }) name: string;
+    }
+    const ref = AsyncReferenced.make({ name: 'referenced' });
+
+    class AsyncModel extends BaseModel {
+      @AsyncComputed()
+      async reference() {
+        return Promise.resolve(ref);
+      }
+    }
+
+    const model = AsyncModel.make({});
+
+    const obj = await model.asyncObject(['reference']);
+    expect(obj.reference instanceof BaseModel).toBeFalsy();
+    expect(obj.reference).toHaveProperty('name');
+    expect(obj.reference.name).toEqual('referenced');
+    expect(obj.reference.__collection__).toBeUndefined();
   });
 });

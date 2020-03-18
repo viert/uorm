@@ -237,7 +237,9 @@ export class BaseModel {
     if (agetters.length) {
       const values = await Promise.all(agetters);
       for (let i = 0; i < afields.length; i++) {
-        obj[afields[i]] = values[i];
+        let value = values[i];
+        if (value instanceof BaseModel) value = value.toObject();
+        obj[afields[i]] = value;
       }
     }
 
