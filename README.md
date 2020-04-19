@@ -65,9 +65,9 @@ Model's `toObject(fields: string[])` method automatically picks up any getter yo
 
 ```typescript
 class MyModel extends StorableModel {
-  @Field() field1: string;
-  @Field() field2: string;
-  @Field() field3: string;
+  @StringField() field1: string;
+  @StringField() field2: string;
+  @StringField() field3: string;
 
   get concat() {
     return field1 + field2 + field3;
@@ -96,8 +96,8 @@ For your convenience there's an async method `async asyncObject(fields)` which h
 import { AsyncComputed, StorableModel } from 'uorm';
 
 class Token extends StorableModel {
-  @Field({ required: true }) token: string;
-  @Field({ required: true }) owner_id: ObjectID;
+  @StringField({ required: true }) token: string;
+  @ObjectIdField({ required: true }) owner_id: ObjectID;
 
   @AsyncComputed()
   get owner() {
