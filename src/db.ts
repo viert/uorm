@@ -37,6 +37,7 @@ export class Shard {
   private database: Nullable<Db> = null;
   private open: boolean;
   private logger: Nullable<Logger>;
+  private client: MongoClient;
 
   private constructor(
     private config: ShardConfig,
@@ -53,12 +54,8 @@ export class Shard {
   async init() {
     let { uri, dbname, options = {}, open = true } = this.config;
     this.open = open;
-    return new Promise(resolve => {
-      MongoClient.connect(uri, options).then(client => {
-        this.database = client.db(dbname);
-        resolve();
-      });
-    });
+    this.client = await MongoClient.connect(uri, options);
+    this.database = this.client.db(dbname);
   }
 
   static async create(
@@ -69,6 +66,10 @@ export class Shard {
     const shard = new Shard(config, uormOptions, shardId);
     await shard.init();
     return shard;
+  }
+
+  async close() {
+    return await this.client.close();
   }
 
   db() {
