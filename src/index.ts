@@ -35,4 +35,4 @@ export {
   ValidationError,
 } from './errors';
 export { ModelCursor } from './model_cursor';
-export { SaveRequired } from './util';
+export { SaveRequired, CommonObject, Nullable } from './util';
