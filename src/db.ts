@@ -275,6 +275,14 @@ class DB {
     }
     throw new InvalidShardId(shardId);
   }
+
+  async close() {
+    const promises = [this.meta().close()];
+    for (const shardId in this.shards()) {
+      promises.push(this.getShard(shardId).close());
+    }
+    return await Promise.all(promises);
+  }
 }
 
 export const db = new DB();
