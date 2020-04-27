@@ -146,7 +146,7 @@ export function createKey(
   return `${prefix}.${funcName}(${argsHash})`;
 }
 
-export function CachedMethod(prefix: string = 'cf', ttlSec: number = 600) {
+export function CachedMethod(prefix: string = 'cf', ttlSec: number = -1) {
   return function __decorate(
     target: any,
     propertyName: string,
@@ -180,7 +180,10 @@ export function CachedMethod(prefix: string = 'cf', ttlSec: number = 600) {
         }
 
         const result = await origFunc.apply(this, args);
+
+        if (ttlSec < 0) ttlSec = db.cacheTTL;
         await cache.set(cacheKey, result, ttlSec);
+
         const dt2 = Date.now();
         cacheLogger(`MISS ${cacheKey} ${dt2 - dt}ms`);
         return result;

@@ -21,6 +21,7 @@ export type CacheConfig = {
   type: 'simple' | 'memcached';
   backends?: string[];
   options?: CommonObject;
+  defaultTTL: number;
 };
 
 export type DatabaseConfig = {
@@ -38,6 +39,7 @@ const DEFAULT_CACHE_CONFIG: CacheConfig = {
   type: 'simple',
   backends: [],
   options: {},
+  defaultTTL: 600,
 };
 
 export class Shard {
@@ -205,6 +207,7 @@ class DB {
   private _meta: Shard;
   private _shards: { [key: string]: Shard } = {};
   private _cache: CacheAdapter;
+  private _cacheTTL: number;
   initialized: boolean = false;
 
   async init(config: DatabaseConfig): Promise<void> {
@@ -227,8 +230,15 @@ class DB {
       default:
         throw new Error(`Invalid cache type "${cache.type}"`);
     }
+
+    this._cacheTTL = cache.defaultTTL;
+
     await this._cache.init();
     this.initialized = true;
+  }
+
+  get cacheTTL() {
+    return this._cacheTTL;
   }
 
   get cache() {

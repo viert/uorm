@@ -1,5 +1,5 @@
 import { initDatabases } from './util';
-import { db, CachedMethod } from '../src';
+import { db, CachedMethod, StorableModel, StringField, Nullable } from '../src';
 import { createKey } from '../src/cache';
 import * as assert from 'assert';
 
@@ -55,5 +55,47 @@ describe('cache', () => {
     res = await tc.incAndReturn();
     assert.strictEqual(tc.count, 2);
     assert.strictEqual(res, 2);
+  });
+
+  it('should cache models with cacheGet', async () => {
+    class MyModel extends StorableModel {
+      @StringField() field1: string;
+
+      static __key_field__ = 'field1';
+
+      static count = 0;
+      static async get<T extends typeof StorableModel>(expression: any) {
+        this.count++;
+        const result = await super.get(expression);
+        return result as Nullable<InstanceType<T>>;
+      }
+    }
+
+    await MyModel.make({ field1: 'hello' }).save();
+
+    let r = await MyModel.cacheGet('hello');
+    assert.strictEqual(MyModel.count, 1);
+    assert.strictEqual(r!.field1, 'hello');
+
+    r = await MyModel.cacheGet('hello');
+    assert.strictEqual(MyModel.count, 1);
+    assert.strictEqual(r!.field1, 'hello');
+
+    r = await MyModel.cacheGet(r!._id);
+    assert.strictEqual(MyModel.count, 2);
+    assert.strictEqual(r!.field1, 'hello');
+
+    r = await MyModel.cacheGet(r!._id);
+    assert.strictEqual(MyModel.count, 2);
+    assert.strictEqual(r!.field1, 'hello');
+
+    await r!.invalidate();
+    r = await MyModel.cacheGet(r!._id);
+    assert.strictEqual(MyModel.count, 3);
+    assert.strictEqual(r!.field1, 'hello');
+
+    r = await MyModel.cacheGet('hello');
+    assert.strictEqual(MyModel.count, 4);
+    assert.strictEqual(r!.field1, 'hello');
   });
 });

@@ -1,3 +1,4 @@
+import debug from 'debug';
 import { ObjectID, Cursor } from 'mongodb';
 import { Shard, db } from './db';
 import { ObjectIdField, FieldType, StringField } from './fields';
@@ -17,6 +18,8 @@ type IndexDescriptor = {
   index: string | Array<any> | CommonObject;
   options?: CommonObject;
 };
+
+const modelLogger = debug('uorm:model');
 
 export class BaseModel {
   @ObjectIdField() _id: ObjectID | null = null;
@@ -357,7 +360,26 @@ export class BaseModel {
   protected async _after_delete() {}
   protected async _save_to_db(): Promise<any> {}
   protected async _delete_from_db(): Promise<any> {}
-  async invalidate() {}
+
+  async invalidate() {
+    const keys = [`${this.__collection__}.${this._id}`];
+    const ctor = this.constructor as typeof BaseModel;
+    if (ctor.__key_field__ !== '_id') {
+      const kfValue = (this as CommonObject)[ctor.__key_field__];
+      if (kfValue) {
+        keys.push(`${this.__collection__}.${kfValue}`);
+      }
+    }
+    return await this._invalidateKeys(keys);
+  }
+
+  async _invalidateKeys(keys: string[]) {
+    const promises: Promise<boolean>[] = [];
+    for (const key of keys) {
+      promises.push(db.cache.delete(key));
+    }
+    return await Promise.all(promises);
+  }
 
   protected static _getPossibleShards(): Shard[] {
     return [];
@@ -398,13 +420,7 @@ export class StorableModel extends BaseModel {
     );
   }
 
-  static async get<T extends typeof StorableModel>(
-    this: T,
-    expression: any,
-    raise: string | Error | null = null,
-    shardId?: Nullable<string>
-  ): Promise<Nullable<InstanceType<T>>> {
-    if (expression === null) return Promise.resolve(null);
+  protected static resolveExpression(expression: any) {
     let query: CommonObject;
     if (expression instanceof ObjectID) {
       query = { _id: expression };
@@ -417,6 +433,49 @@ export class StorableModel extends BaseModel {
         query = { [keyField]: expression };
       }
     }
+    return query;
+  }
+
+  protected static _modelCacheKey(expression: any) {
+    return `${this.__collection__}.${expression}`;
+  }
+
+  static async cacheGet<T extends typeof StorableModel>(
+    this: T,
+    expression: any,
+    raise: string | Error | null = null,
+    shardId?: Nullable<string>
+  ): Promise<Nullable<InstanceType<T>>> {
+    if (expression === null) return Promise.resolve(null);
+    const cacheKey = this._modelCacheKey(expression);
+    const ts1 = Date.now();
+    let result: Nullable<InstanceType<T>>;
+
+    let data = await db.cache.get(cacheKey);
+
+    if (!data) {
+      result = await this.get(expression, raise, shardId);
+      if (result) {
+        await db.cache.set(cacheKey, result.toObject(), db.cacheTTL);
+      }
+      const ts2 = Date.now();
+      modelLogger(`ModelCache MISS ${cacheKey}, ${ts2 - ts1}ms`);
+    } else {
+      result = this.make(data);
+      const ts2 = Date.now();
+      modelLogger(`ModelCache HIT ${cacheKey}, ${ts2 - ts1}ms`);
+    }
+    return result;
+  }
+
+  static async get<T extends typeof StorableModel>(
+    this: T,
+    expression: any,
+    raise: string | Error | null = null,
+    shardId?: Nullable<string>
+  ): Promise<Nullable<InstanceType<T>>> {
+    if (expression === null) return Promise.resolve(null);
+    let query = this.resolveExpression(expression);
     let result = await this.findOne(this._preprocessQuery(query), shardId);
     if (result === null && raise !== null) {
       if (raise instanceof Error) {
