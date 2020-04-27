@@ -1,5 +1,5 @@
 import { CommonObject, Nullable } from './util';
-import { BaseModel } from './model';
+import { BaseModel } from './model'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { Cursor } from 'mongodb';
 
 export class ModelCursor<T extends typeof BaseModel> {

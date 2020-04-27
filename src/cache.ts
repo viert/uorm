@@ -1,7 +1,7 @@
 import debug from 'debug';
 import Memcached from 'memcached';
 import crypto from 'crypto';
-import { db } from 'db';
+import { db } from './db';
 
 const cacheLogger = debug('uorm:cache');
 
@@ -73,7 +73,7 @@ export class MemcachedCacheAdapter implements CacheAdapter {
     private backends: string[],
     private options: { [key: string]: any } = {}
   ) {
-    if (!this.backends || this.backends.length == 0) {
+    if (!this.backends || this.backends.length === 0) {
       throw new Error(
         'Configuration error, backends is mandatory for memcached-based cache'
       );
@@ -123,7 +123,11 @@ export class MemcachedCacheAdapter implements CacheAdapter {
   }
 }
 
-function createKey(prefix: string, funcName: string, args: any[]): string {
+export function createKey(
+  prefix: string,
+  funcName: string,
+  args: any[]
+): string {
   let argsHash = '';
   if (args.length) {
     const hash = crypto.createHash('md5');
@@ -135,7 +139,7 @@ function createKey(prefix: string, funcName: string, args: any[]): string {
   return `${prefix}.${funcName}(${argsHash})`;
 }
 
-export function CachedFunction(prefix: string = 'cf', ttlSec: number = 600) {
+export function CachedMethod(prefix: string = 'cf', ttlSec: number = 600) {
   return function __decorate(
     target: any,
     propertyName: string,
@@ -168,16 +172,14 @@ export function CachedFunction(prefix: string = 'cf', ttlSec: number = 600) {
           return cachedResult;
         }
 
-        const result = await origFunc(...args);
+        const result = await origFunc.apply(this, args);
         await cache.set(cacheKey, result, ttlSec);
         const dt2 = Date.now();
         cacheLogger(`MISS ${cacheKey} ${dt2 - dt}ms`);
         return result;
       };
     } else {
-      throw new Error(
-        'CachedFunction can only decorate async functions and methods'
-      );
+      throw new Error('CachedMethod can only decorate async methods');
     }
   };
 }

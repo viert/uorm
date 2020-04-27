@@ -4,7 +4,11 @@ import { BaseModel } from './model';
 import { InvalidShardId, ShardIsReadOnly, DatabaseIsReadOnly } from './errors';
 import { CommonObject, Nullable } from './util';
 import { ModelCursor } from './model_cursor';
-import { CacheAdapter, SimpleCacheAdapter, MemcachedCacheAdapter } from 'cache';
+import {
+  CacheAdapter,
+  SimpleCacheAdapter,
+  MemcachedCacheAdapter,
+} from './cache';
 
 export type ShardConfig = {
   uri: string;

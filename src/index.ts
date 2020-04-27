@@ -5,7 +5,7 @@ export {
   CacheAdapter,
   SimpleCacheAdapter,
   MemcachedCacheAdapter,
-  CachedFunction,
+  CachedMethod,
 } from './cache';
 
 export {
