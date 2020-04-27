@@ -11,6 +11,7 @@ export interface CacheAdapter {
   get(key: string): Promise<any>;
   set(key: string, value: any, ttlSec: number): Promise<boolean>;
   delete(key: string): Promise<boolean>;
+  close(): Promise<void>;
 }
 
 class ExpirableValue<T> {
@@ -64,6 +65,8 @@ export class SimpleCacheAdapter implements CacheAdapter {
     cacheLogger(`DELETE ${key} ${dt2 - dt}ms`);
     return !item.expired;
   }
+
+  async close() {}
 }
 
 export class MemcachedCacheAdapter implements CacheAdapter {
@@ -120,6 +123,10 @@ export class MemcachedCacheAdapter implements CacheAdapter {
         resolve(result);
       });
     });
+  }
+
+  async close() {
+    this.memcached.end();
   }
 }
 

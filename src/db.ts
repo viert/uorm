@@ -284,6 +284,7 @@ class DB {
     for (const shardId in this.shards()) {
       promises.push(this.getShard(shardId).close());
     }
+    promises.push(this.cache.close());
     return await Promise.all(promises);
   }
 }
