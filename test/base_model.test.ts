@@ -67,6 +67,11 @@ describe('BaseModel tests', () => {
     expect(u.save()).rejects.toThrow(/Field "username" can not be empty/);
   });
 
+  it('empty string fields are valid', async () => {
+    const u = User.make({ username: '' });
+    await u.save();
+  });
+
   it('callable defaults produce values', () => {
     class CallableModel extends BaseModel {
       @StringField({ defaultValue: () => 'value' }) field: string;

@@ -1,5 +1,13 @@
 import 'regenerator-runtime/runtime';
-export { db, Shard, ShardConfig, DatabaseConfig } from './db';
+export { db, Shard, ShardConfig, CacheConfig, DatabaseConfig } from './db';
+
+export {
+  CacheAdapter,
+  SimpleCacheAdapter,
+  MemcachedCacheAdapter,
+  CachedFunction,
+} from './cache';
+
 export {
   BaseModel,
   StorableModel,
@@ -7,6 +15,7 @@ export {
   StorableSubmodel,
   ShardedSubmodel,
 } from './model';
+
 export {
   StringField,
   ObjectIdField,
@@ -18,6 +27,7 @@ export {
   DatetimeField,
   AsyncComputed,
 } from './fields';
+
 export {
   FieldRequired,
   ModelDestroyed,
@@ -34,5 +44,6 @@ export {
   UnknownSubmodel,
   ValidationError,
 } from './errors';
+
 export { ModelCursor } from './model_cursor';
 export { SaveRequired, CommonObject, Nullable } from './util';

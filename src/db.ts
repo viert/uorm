@@ -1,8 +1,10 @@
+import debug from 'debug';
 import { MongoClient, Db } from 'mongodb';
 import { BaseModel } from './model';
 import { InvalidShardId, ShardIsReadOnly, DatabaseIsReadOnly } from './errors';
 import { CommonObject, Nullable } from './util';
 import { ModelCursor } from './model_cursor';
+import { CacheAdapter, SimpleCacheAdapter, MemcachedCacheAdapter } from 'cache';
 
 export type ShardConfig = {
   uri: string;
@@ -11,16 +13,10 @@ export type ShardConfig = {
   open?: boolean;
 };
 
-export interface Logger {
-  debug: (message: string, ...meta: any[]) => void;
-  info: (message: string, ...meta: any[]) => void;
-  warn: (message: string, ...meta: any[]) => void;
-  error: (message: string, ...meta: any[]) => void;
-}
-
-export type UormOptions = {
-  logQueries: boolean;
-  logger?: Nullable<Logger>;
+export type CacheConfig = {
+  type: 'simple' | 'memcached';
+  backends?: string[];
+  options?: CommonObject;
 };
 
 export type DatabaseConfig = {
@@ -28,28 +24,27 @@ export type DatabaseConfig = {
   shards: {
     [key: string]: ShardConfig;
   };
-  options?: UormOptions;
+  cache?: CacheConfig;
 };
 
 export type Query = CommonObject;
 
+const queryLogger = debug('uorm:query');
+const DEFAULT_CACHE_CONFIG: CacheConfig = {
+  type: 'simple',
+  backends: [],
+  options: {},
+};
+
 export class Shard {
   private database: Nullable<Db> = null;
   private open: boolean;
-  private logger: Nullable<Logger>;
   private client: MongoClient;
 
   private constructor(
     private config: ShardConfig,
-    private uormOptions: UormOptions,
     private shardId: Nullable<string>
-  ) {
-    if (uormOptions && uormOptions.logger) {
-      this.logger = uormOptions.logger;
-    } else {
-      this.logger = null;
-    }
-  }
+  ) {}
 
   async init() {
     let { uri, dbname, options = {}, open = true } = this.config;
@@ -58,18 +53,18 @@ export class Shard {
     this.database = this.client.db(dbname);
   }
 
-  static async create(
-    config: ShardConfig,
-    uormOptions: UormOptions,
-    shardId: string | null
-  ) {
-    const shard = new Shard(config, uormOptions, shardId);
+  static async create(config: ShardConfig, shardId: string | null) {
+    const shard = new Shard(config, shardId);
     await shard.init();
     return shard;
   }
 
   async close() {
     return await this.client.close();
+  }
+
+  get name() {
+    return this.shardId || 'meta';
   }
 
   db() {
@@ -88,12 +83,10 @@ export class Shard {
     query: Query,
     ctor: T
   ) {
-    if (this.uormOptions.logQueries) {
-      const msg = `Shard[${this.shardId ||
-        'meta'}].${collection}.getObject(${JSON.stringify(query)})`;
-      if (this.logger) this.logger.debug(msg);
-      else console.log(msg);
-    }
+    queryLogger(
+      `Shard[${this.name}].${collection}.getObject(${JSON.stringify(query)})`
+    );
+
     const coll = this.db().collection(collection);
     const obj = await coll.findOne(query);
     if (obj === null) {
@@ -110,12 +103,11 @@ export class Shard {
     query: Query,
     ctor: T
   ) {
-    if (this.uormOptions.logQueries) {
-      const msg = `Shard[${this.shardId ||
-        'meta'}].${collection}.getObjectsCursor(${JSON.stringify(query)})`;
-      if (this.logger) this.logger.debug(msg);
-      else console.log(msg);
-    }
+    queryLogger(
+      `Shard[${this.name}].${collection}.getObjectsCursor(${JSON.stringify(
+        query
+      )})`
+    );
     const coll = this.db().collection(collection);
     const mongoCursor = coll.find(query);
     return new ModelCursor(mongoCursor, ctor, this.shardId);
@@ -148,12 +140,9 @@ export class Shard {
     if (!this.open) {
       throw new ShardIsReadOnly(this.shardId || 'meta');
     }
-    if (this.uormOptions.logQueries) {
-      const msg = `Shard[${this.shardId ||
-        'meta'}].${collection}.deleteQuery(${JSON.stringify(query)})`;
-      if (this.logger) this.logger.debug(msg);
-      else console.log(msg);
-    }
+    queryLogger(
+      `Shard[${this.name}].${collection}.deleteQuery(${JSON.stringify(query)})`
+    );
     const coll = this.db().collection(collection);
     return await coll.deleteMany(query);
   }
@@ -166,14 +155,10 @@ export class Shard {
     if (!this.open) {
       throw new ShardIsReadOnly(this.shardId || 'meta');
     }
-    if (this.uormOptions.logQueries) {
-      const msg = `Shard[${this.shardId ||
-        'meta'}].${collection}.updateQuery(${JSON.stringify(
-        query
-      )}, ${JSON.stringify(update)})`;
-      if (this.logger) this.logger.debug(msg);
-      else console.log(msg);
-    }
+
+    queryLogger(
+      `Shard[${this.name}].${collection}.updateQuery(${JSON.stringify(query)})`
+    );
     const coll = this.db().collection(collection);
     return await coll.updateMany(query, update);
   }
@@ -193,15 +178,13 @@ export class Shard {
         ...query,
       };
     }
-    if (this.uormOptions.logQueries) {
-      const msg = `Shard[${this.shardId || 'meta'}].${
+    queryLogger(
+      `Shard[${this.name}].${
         obj.__collection__
       }.findAndUpdateObject(${JSON.stringify(query)}, ${JSON.stringify(
         update
-      )})`;
-      if (this.logger) this.logger.debug(msg);
-      else console.log(msg);
-    }
+      )})`
+    );
     const coll = this.db().collection(obj.__collection__);
     const result = await coll.findOneAndUpdate(query, update, {
       returnOriginal: false,
@@ -217,19 +200,35 @@ export class Shard {
 class DB {
   private _meta: Shard;
   private _shards: { [key: string]: Shard } = {};
+  private _cache: CacheAdapter;
   initialized: boolean = false;
 
   async init(config: DatabaseConfig): Promise<void> {
-    let uormOptions: UormOptions = config.options || { logQueries: false };
-    this._meta = await Shard.create(config.meta, uormOptions, null);
+    this._meta = await Shard.create(config.meta, null);
     for (const shardId in config.shards) {
       this._shards[shardId] = await Shard.create(
         config.shards[shardId],
-        uormOptions,
         shardId
       );
     }
+    const { cache = DEFAULT_CACHE_CONFIG } = config;
+    switch (cache.type) {
+      case 'simple':
+        this._cache = new SimpleCacheAdapter();
+        break;
+      case 'memcached':
+        const backends = cache.backends || [];
+        this._cache = new MemcachedCacheAdapter(backends, cache.options);
+        break;
+      default:
+        throw new Error(`Invalid cache type "${cache.type}"`);
+    }
+    await this._cache.init();
     this.initialized = true;
+  }
+
+  get cache() {
+    return this._cache;
   }
 
   meta(): Shard {

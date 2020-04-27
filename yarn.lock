@@ -988,6 +988,11 @@
   resolved "https://registry.yarnpkg.com/@types/color-name/-/color-name-1.1.1.tgz#1c1261bbeaa10a8055bbc5d8ab84b7b2afc846a0"
   integrity sha512-rr+OQyAjxze7GgWrSaJwydHStIhHq2lvY3BOC2Mj7KnzI7XK0Uw1TOOdI9lDoajEbSWLiYgoo4f1R51erQfhPQ==
 
+"@types/debug@^4.1.5":
+  version "4.1.5"
+  resolved "https://registry.yarnpkg.com/@types/debug/-/debug-4.1.5.tgz#b14efa8852b7768d898906613c23f688713e02cd"
+  integrity sha512-Q1y515GcOdTHgagaVFhHnIFQ38ygs/kmxdNpvpou+raI9UO3YZcHDngBSYKQklcKlvA7iuQlmIKbzvmxcOE9CQ==
+
 "@types/eslint-visitor-keys@^1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@types/eslint-visitor-keys/-/eslint-visitor-keys-1.0.0.tgz#1ee30d79544ca84d68d4b3cdb0af4f205663dd2d"
@@ -1049,6 +1054,13 @@
   version "7.0.4"
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.4.tgz#38fd73ddfd9b55abb1e1b2ed578cb55bd7b7d339"
   integrity sha512-8+KAKzEvSUdeo+kmqnKrqgeE+LcA0tjYWFY7RPProVYwnqDjukzO+3b6dLD56rYX5TdWejnEOLJYOIeh4CXKuA==
+
+"@types/memcached@^2.2.6":
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/@types/memcached/-/memcached-2.2.6.tgz#f2b6a01e5344efb51a4176dd471dbd75f7066acd"
+  integrity sha512-7FTcKNkfzc7tfywZo0qtAbAnKTQoyDbCB4xQXXSVQqbXM0PQy0hRFPVymLoicBwaKLqDbL8thRGvF3wKRTnwvg==
+  dependencies:
+    "@types/node" "*"
 
 "@types/minimatch@*":
   version "3.0.3"
@@ -1915,6 +1927,11 @@ confusing-browser-globals@^1.0.9:
   version "1.0.9"
   resolved "https://registry.yarnpkg.com/confusing-browser-globals/-/confusing-browser-globals-1.0.9.tgz#72bc13b483c0276801681871d4898516f8f54fdd"
   integrity sha512-KbS1Y0jMtyPgIxjO7ZzMAuUpAKMt1SzCL9fsrKsX6b0zJPTaT0SiSPmewwVZg9UAO83HVIlEhZF84LIjZ0lmAw==
+
+connection-parse@0.0.x:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/connection-parse/-/connection-parse-0.0.7.tgz#18e7318aab06a699267372b10c5226d25a1c9a69"
+  integrity sha1-GOcxiqsGppkmc3KxDFIm0locmmk=
 
 contains-path@^0.1.0:
   version "0.1.0"
@@ -2919,6 +2936,14 @@ has@^1.0.3:
   dependencies:
     function-bind "^1.1.1"
 
+hashring@3.2.x:
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/hashring/-/hashring-3.2.0.tgz#fda4efde8aa22cdb97fb1d2a65e88401e1c144ce"
+  integrity sha1-/aTv3oqiLNuX+x0qZeiEAeHBRM4=
+  dependencies:
+    connection-parse "0.0.x"
+    simple-lru-cache "0.0.x"
+
 hosted-git-info@^2.1.4:
   version "2.8.5"
   resolved "https://registry.yarnpkg.com/hosted-git-info/-/hosted-git-info-2.8.5.tgz#759cfcf2c4d156ade59b0b2dfabddc42a6b9c70c"
@@ -3315,6 +3340,13 @@ istanbul-reports@^2.2.6:
   integrity sha512-SKi4rnMyLBKe0Jy2uUdx28h8oG7ph2PPuQPvIAh31d+Ci+lSiEu4C+h3oBPuJ9+mPKhOyW0M8gY4U5NM1WLeXA==
   dependencies:
     handlebars "^4.1.2"
+
+jackpot@>=0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/jackpot/-/jackpot-0.0.6.tgz#3cff064285cbf66f4eab2593c90bce816a821849"
+  integrity sha1-PP8GQoXL9m9OqyWTyQvOgWqCGEk=
+  dependencies:
+    retry "0.6.0"
 
 jest-changed-files@^24.9.0:
   version "24.9.0"
@@ -4023,6 +4055,14 @@ map-visit@^1.0.0:
   integrity sha1-7Nyo8TFE5mDxtb1B8S80edmN+48=
   dependencies:
     object-visit "^1.0.0"
+
+memcached@^2.2.2:
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/memcached/-/memcached-2.2.2.tgz#68f86ccfd84bcf93cc25ed46d6d7fc0c7521c9d5"
+  integrity sha1-aPhsz9hLz5PMJe1G1tf8DHUhydU=
+  dependencies:
+    hashring "3.2.x"
+    jackpot ">=0.0.6"
 
 memory-pager@^1.0.2:
   version "1.5.0"
@@ -5043,6 +5083,11 @@ ret@~0.1.10:
   resolved "https://registry.yarnpkg.com/ret/-/ret-0.1.15.tgz#b8a4825d5bdb1fc3f6f53c2bc33f81388681c7bc"
   integrity sha512-TTlYpa+OL+vMMNG24xSlQGEJ3B/RzEfUlLct7b5G/ytav+wPrplCpVMFuwzXbkecJrb6IYo1iFb0S9v37754mg==
 
+retry@0.6.0:
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/retry/-/retry-0.6.0.tgz#1c010713279a6fd1e8def28af0c3ff1871caa537"
+  integrity sha1-HAEHEyeab9Ho3vKK8MP/GHHKpTc=
+
 rimraf@2.6.3:
   version "2.6.3"
   resolved "https://registry.yarnpkg.com/rimraf/-/rimraf-2.6.3.tgz#b2d104fe0d8fb27cf9e0a1cda8262dd3833c6cab"
@@ -5287,6 +5332,11 @@ signal-exit@^3.0.0, signal-exit@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
   integrity sha1-tf3AjxKH6hF4Yo5BXiUTK3NkbG0=
+
+simple-lru-cache@0.0.x:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/simple-lru-cache/-/simple-lru-cache-0.0.2.tgz#d59cc3a193c1a5d0320f84ee732f6e4713e511dd"
+  integrity sha1-1ZzDoZPBpdAyD4Tucy9uRxPlEd0=
 
 sisteransi@^1.0.3:
   version "1.0.4"
