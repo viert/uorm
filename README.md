@@ -10,7 +10,7 @@ Declare models:
 import { StorableModel, StringField, DatetimeField } from 'uorm';
 
 class User extends StorableModel {
-  _collection = 'user';
+  static __collection__ = 'user';
 
   @StringField({ required: true }) username: string;
   @StringField() first_name: string;
