@@ -35,6 +35,8 @@ export type DatabaseConfig = {
 export type Query = CommonObject;
 
 const queryLogger = debug('uorm:query');
+const debugLogger = debug('uorm:debug');
+
 const DEFAULT_CACHE_CONFIG: CacheConfig = {
   type: 'simple',
   backends: [],
@@ -55,12 +57,23 @@ export class Shard {
   async init() {
     let { uri, dbname, options = {}, open = true } = this.config;
     this.open = open;
+    debugLogger(
+      `running MongoClient.connect(${JSON.stringify(uri)}, ${JSON.stringify(
+        options
+      )})`
+    );
     this.client = await MongoClient.connect(uri, options);
     this.database = this.client.db(dbname);
+    debugLogger(
+      `database initialized for shard ${this.shardId ? this.shardId : 'meta'}`
+    );
   }
 
   static async create(config: ShardConfig, shardId: string | null) {
+    const shardName = shardId ? shardId : 'meta';
+    debugLogger(`creating shard ${shardName}`);
     const shard = new Shard(config, shardId);
+    debugLogger(`initializing shard ${shardName}`);
     await shard.init();
     return shard;
   }
@@ -211,6 +224,8 @@ class DB {
   initialized: boolean = false;
 
   async init(config: DatabaseConfig): Promise<void> {
+    debugLogger(`db.init() started with config ${JSON.stringify(config)}`);
+    debugLogger('setting up shards');
     this._meta = await Shard.create(config.meta, null);
     for (const shardId in config.shards) {
       this._shards[shardId] = await Shard.create(
@@ -233,7 +248,9 @@ class DB {
 
     this._cacheTTL = cache.defaultTTL;
 
+    debugLogger('setting up cache');
     await this._cache.init();
+    debugLogger('setting initialized=true');
     this.initialized = true;
   }
 
