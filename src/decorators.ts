@@ -4,7 +4,11 @@ import crypto from 'crypto';
 
 const cacheLogger = debug('uorm:cache');
 
-function createKey(prefix: string, funcName: string, args: any[]): string {
+export function createKey(
+  prefix: string,
+  funcName: string,
+  args: any[]
+): string {
   let argsHash = '';
   if (args.length) {
     const hash = crypto.createHash('md5');

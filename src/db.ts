@@ -239,10 +239,13 @@ class DB {
 
     switch (cache.type) {
       case 'simple':
+        debugLogger('picking the SimpleCacheAdapter');
         this._cache = new SimpleCacheAdapter();
         break;
       case 'memcached':
+        debugLogger('picking the MemcachedCacheAdapter');
         const backends = cache.backends || [];
+        debugLogger(`backends set to ${JSON.stringify(backends)}`);
         this._cache = new MemcachedCacheAdapter(backends, cache.options);
         break;
       default:

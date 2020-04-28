@@ -1,6 +1,6 @@
 import { initDatabases } from './util';
 import { db, CachedMethod, StorableModel, StringField, Nullable } from '../src';
-import { createKey } from '../src/cache';
+import { createKey } from '../src/decorators';
 import * as assert from 'assert';
 
 describe('cache', () => {
