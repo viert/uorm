@@ -140,9 +140,19 @@ export class Shard {
     let data = obj.toObject(null, true);
     if (obj.isNew()) {
       delete data['_id'];
+      queryLogger(
+        `Shard[${this.name}].${
+          obj.__collection__
+        }.saveObj<insert>(${JSON.stringify(data)})`
+      );
       const inserted = await coll.insertOne(data);
       obj._id = inserted.insertedId;
     } else {
+      queryLogger(
+        `Shard[${this.name}].${obj.__collection__}.saveObj<replace>({ _id: ${
+          obj._id
+        } }, ${JSON.stringify(data)})`
+      );
       await coll.replaceOne({ _id: obj._id }, data, { upsert: true });
     }
   }
@@ -152,6 +162,9 @@ export class Shard {
       throw new ShardIsReadOnly(this.shardId || 'meta');
     }
     const coll = this.db().collection(obj.__collection__);
+    queryLogger(
+      `Shard[${this.name}].${obj.__collection__}.deleteObj<replace>({ _id: ${obj._id} })`
+    );
     await coll.deleteOne({ _id: obj._id });
   }
 

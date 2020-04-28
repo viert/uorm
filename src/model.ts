@@ -129,6 +129,8 @@ export class BaseModel {
   }
 
   protected _setInitialState() {
+    const modelName = this.constructor.name;
+    modelLogger(`running ${modelName}._setInitialState`);
     this._initialState = deepcopy(this.toObject());
   }
 
@@ -283,18 +285,22 @@ export class BaseModel {
 
   async save(skipCallback: boolean = false): Promise<void> {
     const isNew = this.isNew();
+    const modelName = this.constructor.name;
 
     if (!skipCallback) {
+      modelLogger(`running ${modelName}._before_validation()`);
       await this._before_validation();
     }
     this._validateAndTrim();
 
     if (!skipCallback) {
+      modelLogger(`running ${modelName}._before_save()`);
       await this._before_save();
     }
     await this._save_to_db();
     this._setInitialState();
     if (!skipCallback) {
+      modelLogger(`running ${modelName}._after_save()`);
       await this._after_save(isNew);
     }
   }
