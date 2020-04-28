@@ -5,8 +5,9 @@ export {
   CacheAdapter,
   SimpleCacheAdapter,
   MemcachedCacheAdapter,
-  CachedMethod,
 } from './cache';
+
+export { CachedMethod } from './decorators';
 
 export {
   BaseModel,
