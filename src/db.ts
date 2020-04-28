@@ -233,23 +233,19 @@ class DB {
         shardId
       );
     }
-
     const { cache = DEFAULT_CACHE_CONFIG } = config;
     debugLogger(`setting up cache with config ${JSON.stringify(cache)}`);
 
-    switch (cache.type) {
-      case 'simple':
-        debugLogger('picking the SimpleCacheAdapter');
-        this._cache = new SimpleCacheAdapter();
-        break;
-      case 'memcached':
-        debugLogger('picking the MemcachedCacheAdapter');
-        const backends = cache.backends || [];
-        debugLogger(`backends set to ${JSON.stringify(backends)}`);
-        this._cache = new MemcachedCacheAdapter(backends, cache.options);
-        break;
-      default:
-        throw new Error(`Invalid cache type "${cache.type}"`);
+    if (cache.type === 'simple') {
+      debugLogger('picking the SimpleCacheAdapter');
+      this._cache = new SimpleCacheAdapter();
+    } else if (cache.type === 'memcached') {
+      debugLogger('picking the MemcachedCacheAdapter');
+      const backends = cache.backends || [];
+      debugLogger(`backends set to ${JSON.stringify(backends)}`);
+      this._cache = new MemcachedCacheAdapter(backends, cache.options);
+    } else {
+      throw new Error(`Invalid cache type "${cache.type}"`);
     }
 
     this._cacheTTL = cache.defaultTTL;
