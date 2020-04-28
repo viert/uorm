@@ -1,5 +1,6 @@
 import { BaseModel } from './model';
 import { ModelSaveRequired } from './errors';
+import { ObjectID } from 'mongodb';
 
 export function snakeCase(name: string) {
   let result: string = '';
@@ -44,6 +45,7 @@ const primitives = {
 
 export function deepcopy(obj: any): any {
   if (typeof obj in primitives) return obj;
+  if (obj instanceof ObjectID) return new ObjectID(obj);
   if (obj instanceof Array) return obj.map(deepcopy);
 
   let nobj: CommonObject = {};
