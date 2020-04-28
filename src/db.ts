@@ -233,7 +233,10 @@ class DB {
         shardId
       );
     }
+
     const { cache = DEFAULT_CACHE_CONFIG } = config;
+    debugLogger(`setting up cache with config ${JSON.stringify(cache)}`);
+
     switch (cache.type) {
       case 'simple':
         this._cache = new SimpleCacheAdapter();
@@ -247,8 +250,7 @@ class DB {
     }
 
     this._cacheTTL = cache.defaultTTL;
-
-    debugLogger('setting up cache');
+    debugLogger('initializing the cache');
     await this._cache.init();
     debugLogger('setting initialized=true');
     this.initialized = true;
