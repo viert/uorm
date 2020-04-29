@@ -1,7 +1,8 @@
 import debug from 'debug';
 import Memcached from 'memcached';
 
-const cacheLogger = debug('uorm:cache');
+const simpleLogger = debug('uorm:cache:simple');
+const memcachedLogger = debug('uorm:cache:memcached');
 
 export interface CacheAdapter {
   init(): Promise<boolean>;
@@ -30,41 +31,57 @@ export class SimpleCacheAdapter implements CacheAdapter {
   }
 
   async has(key: string) {
-    return (
-      key in SimpleCacheAdapter._store &&
-      !SimpleCacheAdapter._store[key].expired
-    );
+    let expired = false;
+    const hasKey = key in SimpleCacheAdapter._store;
+    simpleLogger(`has(${key}): key exists = ${hasKey}`);
+
+    if (hasKey) {
+      const expired = SimpleCacheAdapter._store[key].expired;
+      if (expired) simpleLogger(`has(${key}) key is expired`);
+    }
+    return hasKey && !expired;
   }
 
   async get(key: string) {
     const item = SimpleCacheAdapter._store[key];
     if (!item) {
+      simpleLogger(`get(${key}) item is ${item}`);
       return null;
     }
+
     if (item.expired) {
+      simpleLogger(`get(${key}) item is expired, deleting`);
       delete SimpleCacheAdapter._store[key];
       return null;
     }
+
+    simpleLogger(`get(${key}) cache hit`);
     return item.value;
   }
 
   async set(key: string, value: any, ttlSec = 600) {
     const item = new ExpirableValue(value, ttlSec);
+    simpleLogger(`set(${key}, ${value}, ttl=${ttlSec})`);
     SimpleCacheAdapter._store[key] = item;
     return true;
   }
 
   async delete(key: string) {
     const dt = Date.now();
-    if (!(await this.has(key))) return false;
+    if (!(await this.has(key))) {
+      simpleLogger(`delete(${key}) key doesn't exist`);
+      return false;
+    }
+
     const item = SimpleCacheAdapter._store[key];
     delete SimpleCacheAdapter._store[key];
     const dt2 = Date.now();
-    cacheLogger(`DELETE ${key} ${dt2 - dt}ms`);
     return !item.expired;
   }
 
-  async close() {}
+  async close() {
+    simpleLogger('close()');
+  }
 }
 
 export class MemcachedCacheAdapter implements CacheAdapter {
@@ -82,16 +99,20 @@ export class MemcachedCacheAdapter implements CacheAdapter {
   }
 
   async init(): Promise<boolean> {
+    memcachedLogger('initializing memcached connection');
     this.memcached = new Memcached(this.backends, this.options);
     return true;
   }
 
   async get(key: string): Promise<any> {
     return new Promise((resolve, reject) => {
+      memcachedLogger(`running memcached.get(${key})`);
       this.memcached.get(key, (err, data) => {
         if (err) {
+          memcachedLogger(`get(${key}): ${err}`);
           return reject(err);
         }
+        memcachedLogger(`get(${key}) cache hit`);
         resolve(data);
       });
     });
@@ -99,31 +120,39 @@ export class MemcachedCacheAdapter implements CacheAdapter {
 
   async set(key: string, value: any, ttlSec: number): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      memcachedLogger(`running memcached.set(${key}, ${value}, ttl=${ttlSec})`);
       this.memcached.set(key, value, ttlSec, (err, result) => {
         if (err) {
+          memcachedLogger(`set(${key}) error: ${err}`);
           return reject(err);
         }
+        memcachedLogger(`set(${key}) succeed`);
         resolve(result);
       });
     });
   }
 
   async has(key: string): Promise<boolean> {
+    memcachedLogger(`has(${key})`);
     return (await this.get(key)) !== undefined;
   }
 
   async delete(key: string): Promise<boolean> {
+    memcachedLogger(`running memcached.delete(${key})`);
     return new Promise((resolve, reject) => {
       this.memcached.del(key, (err, result) => {
         if (err) {
+          memcachedLogger(`delete(${key}) error: ${err}`);
           return reject(err);
         }
+        memcachedLogger(`delete(${key}) succeed`);
         resolve(result);
       });
     });
   }
 
   async close() {
+    memcachedLogger('close()');
     this.memcached.end();
   }
 }
