@@ -75,7 +75,10 @@ export class SimpleCacheAdapter implements CacheAdapter {
 
     const item = SimpleCacheAdapter._store[key];
     delete SimpleCacheAdapter._store[key];
+
     const dt2 = Date.now();
+    simpleLogger(`delete(${key}) ${dt2 - dt}ms`);
+
     return !item.expired;
   }
 
