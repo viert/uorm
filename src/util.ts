@@ -44,6 +44,7 @@ const primitives = {
 };
 
 export function deepcopy(obj: any): any {
+  if (obj === null) return null;
   if (typeof obj in primitives) return obj;
   if (obj instanceof ObjectID) return new ObjectID(obj);
   if (obj instanceof Array) return obj.map(deepcopy);

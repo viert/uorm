@@ -6,7 +6,7 @@ import {
   NumberField,
   AsyncComputed,
 } from '../src/fields';
-import { SaveRequired } from '../src/util';
+import { SaveRequired, Nullable } from '../src/util';
 import { ObjectID } from 'mongodb';
 import { ValidationError, ModelSaveRequired } from '../src/errors';
 
@@ -210,5 +210,20 @@ describe('BaseModel tests', () => {
     expect(obj.reference).toHaveProperty('name');
     expect(obj.reference.name).toEqual('referenced');
     expect(obj.reference.__collection__).toBeUndefined();
+  });
+
+  it('sets proper initial state', async () => {
+    class Model extends BaseModel {
+      @StringField() sField: Nullable<string>;
+      @StringField({ defaultValue: '' }) dField: string;
+    }
+
+    const model = Model.make({});
+    expect(model._id).toEqual(null);
+    expect(model._initialState._id).toEqual(null);
+    expect(model.sField).toEqual(null);
+    expect(model._initialState.sField).toEqual(null);
+    expect(model.dField).toEqual('');
+    expect(model._initialState.dField).toEqual('');
   });
 });
