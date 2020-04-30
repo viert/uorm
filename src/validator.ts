@@ -35,7 +35,7 @@ export function validateField(
           value = value.trim();
         }
         if (required && !value) {
-          throw new FieldRequired(`Field ${field} can not be empty`);
+          throw new FieldRequired(field);
         }
         return;
       }
