@@ -20,6 +20,7 @@ describe('cache', () => {
         .db()
         .dropDatabase();
     }
+    await db.close();
     done();
   });
 
