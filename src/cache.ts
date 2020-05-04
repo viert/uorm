@@ -33,7 +33,7 @@ export class SimpleCacheAdapter implements CacheAdapter {
   async has(key: string) {
     let expired = false;
     const hasKey = key in SimpleCacheAdapter._store;
-    simpleLogger(`has(${key}): key exists = ${hasKey}`);
+    simpleLogger(`has(${key}): key ${hasKey}`);
 
     if (hasKey) {
       const expired = SimpleCacheAdapter._store[key].expired;
@@ -45,7 +45,7 @@ export class SimpleCacheAdapter implements CacheAdapter {
   async get(key: string) {
     const item = SimpleCacheAdapter._store[key];
     if (!item) {
-      simpleLogger(`get(${key}) item is ${item}`);
+      simpleLogger(`get(${key}) cache miss`);
       return null;
     }
 
@@ -61,7 +61,7 @@ export class SimpleCacheAdapter implements CacheAdapter {
 
   async set(key: string, value: any, ttlSec = 600) {
     const item = new ExpirableValue(value, ttlSec);
-    simpleLogger(`set(${key}, ${value}, ttl=${ttlSec})`);
+    simpleLogger(`set(${key}, ${JSON.stringify(value)}, ttl=${ttlSec})`);
     SimpleCacheAdapter._store[key] = item;
     return true;
   }
@@ -123,7 +123,9 @@ export class MemcachedCacheAdapter implements CacheAdapter {
 
   async set(key: string, value: any, ttlSec: number): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      memcachedLogger(`running memcached.set(${key}, ${value}, ttl=${ttlSec})`);
+      memcachedLogger(
+        `running memcached.set(${key}, ${JSON.stringify(value)}, ttl=${ttlSec})`
+      );
       this.memcached.set(key, value, ttlSec, (err, result) => {
         if (err) {
           memcachedLogger(`set(${key}) error: ${err}`);
