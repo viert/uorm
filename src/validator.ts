@@ -47,7 +47,7 @@ export function validateField(
       if (value instanceof ObjectID) return;
       throw new ValidationError(`Field ${field} must be an ObjectID instance`);
     case FieldType.object:
-      if (value instanceof Object) return;
+      if (value.constructor.name === 'Object') return;
       throw new ValidationError(`Field ${field} must be an object`);
     default:
       return;

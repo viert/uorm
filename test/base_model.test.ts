@@ -5,8 +5,9 @@ import {
   FieldType,
   NumberField,
   AsyncComputed,
+  ObjectField,
 } from '../src/fields';
-import { SaveRequired, Nullable } from '../src/util';
+import { SaveRequired, Nullable, CommonObject } from '../src/util';
 import { ObjectID } from 'mongodb';
 import { ValidationError, ModelSaveRequired } from '../src/errors';
 
@@ -225,5 +226,17 @@ describe('BaseModel tests', () => {
     expect(model._initialState.sField).toEqual(null);
     expect(model.dField).toEqual('');
     expect(model._initialState.dField).toEqual('');
+  });
+
+  it('must accept object fields', async () => {
+    class Model extends BaseModel {
+      @ObjectField({ required: true }) field: CommonObject;
+    }
+
+    const model = Model.make({ field: '' });
+    await expect(model.save()).rejects.toThrow(/must be an object/);
+
+    const model2 = Model.make({ field: { a: { b: { c: { d: {} } } } } });
+    await expect(model2.save()).resolves.toBe(undefined);
   });
 });
